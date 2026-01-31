@@ -8,92 +8,126 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTeachers } from "@/hooks/useTeachers";
+import { generatePayslipPDF } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 
-const payrollData = [
-  { id: 1, name: "Dr. Robert Smith", role: "Teacher", baseSalary: "$4,500", deductions: "$450", netSalary: "$4,050", status: "paid", paidDate: "Jan 5, 2026" },
-  { id: 2, name: "Ms. Jennifer Lee", role: "Teacher", baseSalary: "$4,200", deductions: "$420", netSalary: "$3,780", status: "paid", paidDate: "Jan 5, 2026" },
-  { id: 3, name: "Mr. David Chen", role: "Teacher", baseSalary: "$4,300", deductions: "$430", netSalary: "$3,870", status: "pending", paidDate: "-" },
-  { id: 4, name: "Mrs. Sarah Thompson", role: "Teacher", baseSalary: "$4,400", deductions: "$440", netSalary: "$3,960", status: "paid", paidDate: "Jan 5, 2026" },
-  { id: 5, name: "Mr. Michael Brown", role: "Teacher", baseSalary: "$4,100", deductions: "$410", netSalary: "$3,690", status: "pending", paidDate: "-" },
-  { id: 6, name: "Ms. Emily Davis", role: "Teacher", baseSalary: "$4,250", deductions: "$425", netSalary: "$3,825", status: "paid", paidDate: "Jan 5, 2026" },
-  { id: 7, name: "John Williams", role: "Staff", baseSalary: "$2,800", deductions: "$280", netSalary: "$2,520", status: "paid", paidDate: "Jan 5, 2026" },
-  { id: 8, name: "Mary Johnson", role: "Staff", baseSalary: "$2,600", deductions: "$260", netSalary: "$2,340", status: "pending", paidDate: "-" },
-];
-
-type PayrollItem = typeof payrollData[0];
+type PayrollItem = {
+  id: string;
+  name: string;
+  email: string | null;
+  salary: number | null;
+  salary_status: "paid" | "pending" | null;
+};
 
 const statusColors = {
   paid: "bg-success/10 text-success border-success/20",
   pending: "bg-warning/10 text-warning border-warning/20",
 };
 
-const columns = [
-  {
-    key: "name",
-    label: "Employee",
-    render: (item: PayrollItem) => (
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
-          {item.name.split(" ").map((n) => n[0]).join("")}
-        </div>
-        <div>
-          <p className="font-medium">{item.name}</p>
-          <p className="text-xs text-muted-foreground">{item.role}</p>
-        </div>
-      </div>
-    ),
-  },
-  { key: "baseSalary", label: "Base Salary" },
-  { key: "deductions", label: "Deductions" },
-  {
-    key: "netSalary",
-    label: "Net Salary",
-    render: (item: PayrollItem) => (
-      <span className="font-semibold text-success">{item.netSalary}</span>
-    ),
-  },
-  {
-    key: "status",
-    label: "Status",
-    render: (item: PayrollItem) => (
-      <Badge variant="outline" className={statusColors[item.status as keyof typeof statusColors]}>
-        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-      </Badge>
-    ),
-  },
-  { key: "paidDate", label: "Paid Date" },
-  {
-    key: "actions",
-    label: "Actions",
-    render: (item: PayrollItem) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem className="gap-2">
-            <FileText className="h-4 w-4" /> Generate Payslip
-          </DropdownMenuItem>
-          {item.status === "pending" && (
-            <DropdownMenuItem className="gap-2">
-              <CheckCircle2 className="h-4 w-4" /> Mark as Paid
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem className="gap-2">
-            <Download className="h-4 w-4" /> Download PDF
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  },
-];
-
 export default function Payroll() {
-  const totalPaid = payrollData.filter(p => p.status === "paid").reduce((sum, p) => sum + parseFloat(p.netSalary.replace(/[$,]/g, "")), 0);
-  const totalPending = payrollData.filter(p => p.status === "pending").reduce((sum, p) => sum + parseFloat(p.netSalary.replace(/[$,]/g, "")), 0);
+  const { data: teachers, isLoading } = useTeachers();
+
+  const handleGeneratePayslip = (teacher: PayrollItem) => {
+    const baseSalary = teacher.salary || 0;
+    const deductions = baseSalary * 0.1; // 10% deductions
+    const netSalary = baseSalary - deductions;
+
+    generatePayslipPDF({
+      employeeName: teacher.name,
+      employeeId: teacher.id.slice(0, 8).toUpperCase(),
+      role: "Teacher",
+      month: new Date().toLocaleString("default", { month: "long" }),
+      year: new Date().getFullYear(),
+      baseSalary,
+      deductions,
+      netSalary,
+      paymentDate: new Date().toLocaleDateString(),
+    });
+
+    toast.success("Payslip generated!");
+  };
+
+  const columns = [
+    {
+      key: "name",
+      label: "Employee",
+      render: (item: PayrollItem) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
+            {item.name.split(" ").map((n) => n[0]).join("")}
+          </div>
+          <div>
+            <p className="font-medium">{item.name}</p>
+            <p className="text-xs text-muted-foreground">Teacher</p>
+          </div>
+        </div>
+      ),
+    },
+    { 
+      key: "salary", 
+      label: "Base Salary",
+      render: (item: PayrollItem) => `$${(item.salary || 0).toLocaleString()}`,
+    },
+    { 
+      key: "deductions", 
+      label: "Deductions",
+      render: (item: PayrollItem) => `$${((item.salary || 0) * 0.1).toLocaleString()}`,
+    },
+    {
+      key: "netSalary",
+      label: "Net Salary",
+      render: (item: PayrollItem) => (
+        <span className="font-semibold text-success">
+          ${((item.salary || 0) * 0.9).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: "salary_status",
+      label: "Status",
+      render: (item: PayrollItem) => (
+        <Badge variant="outline" className={statusColors[item.salary_status || "pending"]}>
+          {(item.salary_status || "pending").charAt(0).toUpperCase() + (item.salary_status || "pending").slice(1)}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (item: PayrollItem) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem 
+              className="gap-2"
+              onClick={() => handleGeneratePayslip(item)}
+            >
+              <FileText className="h-4 w-4" /> Generate Payslip
+            </DropdownMenuItem>
+            {item.salary_status === "pending" && (
+              <DropdownMenuItem className="gap-2">
+                <CheckCircle2 className="h-4 w-4" /> Mark as Paid
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem 
+              className="gap-2"
+              onClick={() => handleGeneratePayslip(item)}
+            >
+              <Download className="h-4 w-4" /> Download PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
+
+  const totalPaid = teachers?.filter(t => t.salary_status === "paid").reduce((sum, t) => sum + ((t.salary || 0) * 0.9), 0) || 0;
+  const totalPending = teachers?.filter(t => t.salary_status !== "paid").reduce((sum, t) => sum + ((t.salary || 0) * 0.9), 0) || 0;
 
   return (
     <div className="space-y-6">
@@ -140,10 +174,11 @@ export default function Payroll() {
       </div>
 
       <DataTable
-        data={payrollData}
+        data={teachers || []}
         columns={columns}
         searchPlaceholder="Search employees..."
         onExport={() => toast.success("Exporting payroll data...")}
+        isLoading={isLoading}
       />
     </div>
   );
