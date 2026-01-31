@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTeachers } from "@/hooks/useTeachers";
-import { generatePayslipPDF } from "@/lib/pdfGenerator";
+import { generatePayslipPDF, formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 
 type PayrollItem = {
@@ -37,12 +37,12 @@ export default function Payroll() {
       employeeName: teacher.name,
       employeeId: teacher.id.slice(0, 8).toUpperCase(),
       role: "Teacher",
-      month: new Date().toLocaleString("default", { month: "long" }),
+      month: new Date().toLocaleString("en-IN", { month: "long" }),
       year: new Date().getFullYear(),
       baseSalary,
       deductions,
       netSalary,
-      paymentDate: new Date().toLocaleDateString(),
+      paymentDate: new Date().toLocaleDateString("en-IN"),
     });
 
     toast.success("Payslip generated!");
@@ -67,19 +67,19 @@ export default function Payroll() {
     { 
       key: "salary", 
       label: "Base Salary",
-      render: (item: PayrollItem) => `$${(item.salary || 0).toLocaleString()}`,
+      render: (item: PayrollItem) => formatINR(item.salary || 0),
     },
     { 
       key: "deductions", 
       label: "Deductions",
-      render: (item: PayrollItem) => `$${((item.salary || 0) * 0.1).toLocaleString()}`,
+      render: (item: PayrollItem) => formatINR((item.salary || 0) * 0.1),
     },
     {
       key: "netSalary",
       label: "Net Salary",
       render: (item: PayrollItem) => (
         <span className="font-semibold text-success">
-          ${((item.salary || 0) * 0.9).toLocaleString()}
+          {formatINR((item.salary || 0) * 0.9)}
         </span>
       ),
     },
@@ -142,7 +142,7 @@ export default function Payroll() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Payroll</p>
-              <p className="text-2xl font-bold mt-1">${(totalPaid + totalPending).toLocaleString()}</p>
+              <p className="text-2xl font-bold mt-1">{formatINR(totalPaid + totalPending)}</p>
             </div>
             <div className="p-3 rounded-xl bg-primary/10 text-primary">
               <DollarSign className="h-6 w-6" />
@@ -153,7 +153,7 @@ export default function Payroll() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
-              <p className="text-2xl font-bold mt-1 text-success">${totalPaid.toLocaleString()}</p>
+              <p className="text-2xl font-bold mt-1 text-success">{formatINR(totalPaid)}</p>
             </div>
             <div className="p-3 rounded-xl bg-success/10 text-success">
               <CheckCircle2 className="h-6 w-6" />
@@ -164,7 +164,7 @@ export default function Payroll() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              <p className="text-2xl font-bold mt-1 text-warning">${totalPending.toLocaleString()}</p>
+              <p className="text-2xl font-bold mt-1 text-warning">{formatINR(totalPending)}</p>
             </div>
             <div className="p-3 rounded-xl bg-warning/10 text-warning">
               <DollarSign className="h-6 w-6" />
