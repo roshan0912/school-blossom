@@ -17,6 +17,7 @@ interface DataTableProps<T> {
   addLabel?: string;
   onExport?: () => void;
   onImport?: () => void;
+  isLoading?: boolean;
 }
 
 export function DataTable<T extends { id: string | number }>({
@@ -27,6 +28,7 @@ export function DataTable<T extends { id: string | number }>({
   addLabel = "Add New",
   onExport,
   onImport,
+  isLoading = false,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,7 +95,16 @@ export function DataTable<T extends { id: string | number }>({
               </tr>
             </thead>
             <tbody>
-              {paginatedData.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={columns.length} className="text-center py-8 text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Loading...
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="text-center py-8 text-muted-foreground">
                     No data found
