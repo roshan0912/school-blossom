@@ -1,6 +1,6 @@
 import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
-import { Bell, Search, Moon, Sun, LogOut } from "lucide-react";
+import { Search, Moon, Sun, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export function DashboardLayout() {
   const [isDark, setIsDark] = useState(false);
@@ -64,10 +65,7 @@ export function DashboardLayout() {
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
-            </Button>
+            <NotificationDropdown />
 
             {/* User Menu */}
             <DropdownMenu>

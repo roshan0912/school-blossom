@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { UserPlus, DollarSign, FileCheck, Calendar, Loader2 } from "lucide-react";
+import { UserPlus, IndianRupee, FileCheck, Calendar, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -48,9 +48,9 @@ function useRecentActivity() {
         activities.push({
           id: `payment-${payment.id}`,
           type: "payment",
-          message: `Payment received from ${(payment.students as any)?.name || "student"}`,
+          message: `Payment of ₹${Number(payment.amount).toLocaleString("en-IN")} received from ${(payment.students as any)?.name || "student"}`,
           time: formatDistanceToNow(new Date(payment.created_at), { addSuffix: true }),
-          icon: DollarSign,
+          icon: IndianRupee,
           iconBg: "bg-success/10 text-success",
         });
       });

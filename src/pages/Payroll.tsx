@@ -1,7 +1,7 @@
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, FileText, DollarSign, Download, CheckCircle2 } from "lucide-react";
+import { MoreHorizontal, FileText, IndianRupee, Download, CheckCircle2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -145,7 +145,7 @@ export default function Payroll() {
               <p className="text-2xl font-bold mt-1">{formatINR(totalPaid + totalPending)}</p>
             </div>
             <div className="p-3 rounded-xl bg-primary/10 text-primary">
-              <DollarSign className="h-6 w-6" />
+              <IndianRupee className="h-6 w-6" />
             </div>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function Payroll() {
               <p className="text-2xl font-bold mt-1 text-warning">{formatINR(totalPending)}</p>
             </div>
             <div className="p-3 rounded-xl bg-warning/10 text-warning">
-              <DollarSign className="h-6 w-6" />
+              <IndianRupee className="h-6 w-6" />
             </div>
           </div>
         </div>
