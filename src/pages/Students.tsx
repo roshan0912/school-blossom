@@ -24,6 +24,7 @@ import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useB
 import { useClasses } from "@/hooks/useClasses";
 import { ImportDialog } from "@/components/ImportDialog";
 import { exportToExcel, type ExcelColumn } from "@/lib/excel";
+import { StudentDetailsDialog } from "@/components/ViewDetailsDialogs";
 import type { Database } from "@/integrations/supabase/types";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
@@ -78,6 +79,7 @@ export default function Students() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithClass | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<StudentWithClass | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -199,7 +201,7 @@ export default function Students() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem className="gap-2" onClick={() => setViewingStudent(item)}>
               <Eye className="h-4 w-4" /> View Details
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2" onClick={() => handleEdit(item)}>
@@ -370,6 +372,13 @@ export default function Students() {
           phone: row.phone ? String(row.phone) : null,
           address: row.address ? String(row.address) : null,
         })}
+      />
+
+      {/* View Details Dialog */}
+      <StudentDetailsDialog
+        open={!!viewingStudent}
+        onOpenChange={(open) => !open && setViewingStudent(null)}
+        student={viewingStudent}
       />
     </div>
   );

@@ -1,26 +1,89 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileText, Users, DollarSign, Calendar, BarChart3, TrendingUp, PieChart, Loader2 } from "lucide-react";
+import { Download, FileText, Users, IndianRupee, Calendar, BarChart3, TrendingUp, PieChart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, LineChart, Line } from "recharts";
 import { useDashboardStats, useFeeStats } from "@/hooks/useDashboardStats";
 import { useStudents } from "@/hooks/useStudents";
+import { useTeachers } from "@/hooks/useTeachers";
+import { exportToExcel, type ExcelColumn } from "@/lib/excel";
 import { formatINR } from "@/lib/pdfGenerator";
 
 const reportTypes = [
-  { title: "Student Report", description: "Complete student data with attendance and fees", icon: Users, color: "primary" },
-  { title: "Teacher Report", description: "Staff details with salary history", icon: FileText, color: "success" },
-  { title: "Financial Report", description: "Fee collection and expense summary", icon: DollarSign, color: "warning" },
-  { title: "Attendance Report", description: "Monthly attendance analysis", icon: Calendar, color: "info" },
+  { title: "Student Report", description: "Complete student data with attendance and fees", icon: Users, color: "primary", key: "students" },
+  { title: "Teacher Report", description: "Staff details with salary history", icon: FileText, color: "success", key: "teachers" },
+  { title: "Financial Report", description: "Fee collection and expense summary", icon: IndianRupee, color: "warning", key: "financial" },
+  { title: "Attendance Report", description: "Monthly attendance analysis", icon: Calendar, color: "info", key: "attendance" },
 ];
 
 export default function Reports() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: feeData, isLoading: feeLoading } = useFeeStats();
   const { data: students } = useStudents();
+  const { data: teachers } = useTeachers();
 
-  const handleDownload = (type: string) => {
-    toast.success(`Downloading ${type}...`);
+  const studentExportColumns: ExcelColumn[] = [
+    { key: "name", header: "Name" },
+    { key: "roll_no", header: "Roll No" },
+    { key: "classes.name", header: "Class" },
+    { key: "parent_name", header: "Parent/Guardian" },
+    { key: "phone", header: "Phone" },
+    { key: "fee_status", header: "Fee Status" },
+  ];
+
+  const teacherExportColumns: ExcelColumn[] = [
+    { key: "name", header: "Name" },
+    { key: "email", header: "Email" },
+    { key: "phone", header: "Phone" },
+    { key: "subject", header: "Subject" },
+    { key: "classes", header: "Classes" },
+    { key: "salary", header: "Salary (₹)" },
+    { key: "salary_status", header: "Status" },
+  ];
+
+  const handleDownload = (reportKey: string, title: string) => {
+    switch (reportKey) {
+      case "students":
+        if (students && students.length > 0) {
+          exportToExcel(students as Record<string, unknown>[], studentExportColumns, "student_report");
+          toast.success("Student report downloaded!");
+        } else {
+          toast.error("No student data to export");
+        }
+        break;
+      case "teachers":
+        if (teachers && teachers.length > 0) {
+          exportToExcel(teachers as Record<string, unknown>[], teacherExportColumns, "teacher_report");
+          toast.success("Teacher report downloaded!");
+        } else {
+          toast.error("No teacher data to export");
+        }
+        break;
+      case "financial":
+        if (teachers && teachers.length > 0) {
+          const financialData = teachers.map(t => ({
+            name: t.name,
+            salary: t.salary || 0,
+            status: t.salary_status || "pending",
+            net_salary: ((t.salary || 0) * 0.9),
+          }));
+          exportToExcel(financialData as Record<string, unknown>[], [
+            { key: "name", header: "Employee" },
+            { key: "salary", header: "Base Salary (₹)" },
+            { key: "net_salary", header: "Net Salary (₹)" },
+            { key: "status", header: "Payment Status" },
+          ], "financial_report");
+          toast.success("Financial report downloaded!");
+        } else {
+          toast.error("No financial data to export");
+        }
+        break;
+      case "attendance":
+        toast.info("Mark attendance first to generate attendance reports");
+        break;
+      default:
+        toast.success(`Downloading ${title}...`);
+    }
   };
 
   // Generate enrollment data from actual student records
@@ -72,7 +135,7 @@ export default function Reports() {
             key={report.title} 
             className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 opacity-0 animate-fade-in"
             style={{ animationDelay: `${index * 100}ms` }}
-            onClick={() => handleDownload(report.title)}
+            onClick={() => handleDownload(report.key, report.title)}
           >
             <CardHeader className="pb-3">
               <div className={`w-10 h-10 rounded-xl bg-${report.color}/10 text-${report.color} flex items-center justify-center mb-2`}>
@@ -215,7 +278,10 @@ export default function Reports() {
                   </CardTitle>
                   <CardDescription>Total students over time</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => handleDownload("Enrollment Report")}>
+                <Button variant="outline" size="sm" className="gap-2" onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload("students", "Enrollment Report");
+                }}>
                   <Download className="h-4 w-4" />
                   Export
                 </Button>
