@@ -168,7 +168,7 @@ export default function Teachers() {
     {
       key: "salary",
       label: "Monthly Salary",
-      render: (item: Teacher) => item.salary ? `$${Number(item.salary).toLocaleString()}` : "N/A",
+      render: (item: Teacher) => item.salary ? `₹${Number(item.salary).toLocaleString("en-IN")}` : "N/A",
     },
     {
       key: "salary_status",
