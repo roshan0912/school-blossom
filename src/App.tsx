@@ -15,8 +15,10 @@ import Classes from "./pages/Classes";
 import Attendance from "./pages/Attendance";
 import Payroll from "./pages/Payroll";
 import Exams from "./pages/Exams";
+import ExamResults from "./pages/ExamResults";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,8 +48,10 @@ const App = () => (
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/payroll" element={<Payroll />} />
               <Route path="/exams" element={<Exams />} />
+              <Route path="/exams/:examId/results" element={<ExamResults />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/admin" element={<AdminPanel />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
