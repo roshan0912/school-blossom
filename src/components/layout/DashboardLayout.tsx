@@ -1,12 +1,23 @@
 import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
-import { Bell, Search, Moon, Sun } from "lucide-react";
+import { Bell, Search, Moon, Sun, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export function DashboardLayout() {
   const [isDark, setIsDark] = useState(false);
+  const { user, signOut, userRole } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isDark) {
@@ -15,6 +26,16 @@ export function DashboardLayout() {
       document.documentElement.classList.remove("dark");
     }
   }, [isDark]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  const getInitials = () => {
+    const email = user?.email || "";
+    return email.charAt(0).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,6 +68,33 @@ export function DashboardLayout() {
               <Bell className="h-4 w-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
             </Button>
+
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 px-2 gap-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
+                    {getInitials()}
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium">
+                    {user?.email?.split("@")[0]}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user?.email}</p>
+                  {userRole && (
+                    <p className="text-xs text-muted-foreground capitalize">{userRole}</p>
+                  )}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

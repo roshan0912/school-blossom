@@ -1,166 +1,288 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Check, X, Calendar as CalendarIcon, CheckCircle2, Download } from "lucide-react";
-import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarIcon, CheckCircle2, XCircle, Clock, Users, Loader2 } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useStudents } from "@/hooks/useStudents";
+import { useTeachers } from "@/hooks/useTeachers";
+import { useStudentAttendance, useBulkMarkAttendance, useTeacherAttendance, useMarkTeacherAttendance } from "@/hooks/useAttendance";
+import type { Database } from "@/integrations/supabase/types";
 
-const studentsData = [
-  { id: 1, name: "Sarah Johnson", rollNo: "001", status: "present" },
-  { id: 2, name: "James Wilson", rollNo: "002", status: "present" },
-  { id: 3, name: "Emily Brown", rollNo: "003", status: "absent" },
-  { id: 4, name: "Michael Davis", rollNo: "004", status: "present" },
-  { id: 5, name: "Emma Martinez", rollNo: "005", status: "present" },
-  { id: 6, name: "William Taylor", rollNo: "006", status: "late" },
-  { id: 7, name: "Olivia Anderson", rollNo: "007", status: "present" },
-  { id: 8, name: "Alexander White", rollNo: "008", status: "present" },
-];
+type AttendanceStatus = Database["public"]["Enums"]["attendance_status"];
+
+const statusColors = {
+  present: "bg-success/10 text-success border-success/20 hover:bg-success/20",
+  absent: "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20",
+  late: "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20",
+};
+
+const statusIcons = {
+  present: CheckCircle2,
+  absent: XCircle,
+  late: Clock,
+};
 
 export default function Attendance() {
-  const [students, setStudents] = useState(studentsData);
-  const [selectedClass, setSelectedClass] = useState("10-A");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState<Date>(new Date());
+  const [activeTab, setActiveTab] = useState("students");
+  const [attendanceMap, setAttendanceMap] = useState<Record<string, AttendanceStatus>>({});
 
-  const toggleStatus = (id: number) => {
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          const statuses = ["present", "absent", "late"];
-          const currentIndex = statuses.indexOf(s.status);
-          const nextIndex = (currentIndex + 1) % statuses.length;
-          return { ...s, status: statuses[nextIndex] };
-        }
-        return s;
-      })
-    );
+  const dateString = format(date, "yyyy-MM-dd");
+
+  const { data: students, isLoading: studentsLoading } = useStudents();
+  const { data: teachers, isLoading: teachersLoading } = useTeachers();
+  const { data: studentAttendance, isLoading: attendanceLoading } = useStudentAttendance(dateString);
+  const { data: teacherAttendance } = useTeacherAttendance(dateString);
+  const bulkMarkAttendance = useBulkMarkAttendance();
+  const markTeacherAttendance = useMarkTeacherAttendance();
+
+  const getStudentAttendanceStatus = (studentId: string): AttendanceStatus => {
+    if (attendanceMap[studentId]) return attendanceMap[studentId];
+    const record = studentAttendance?.find((a) => a.student_id === studentId);
+    return record?.status || "present";
+  };
+
+  const getTeacherAttendanceStatus = (teacherId: string): AttendanceStatus => {
+    if (attendanceMap[teacherId]) return attendanceMap[teacherId];
+    const record = teacherAttendance?.find((a) => a.teacher_id === teacherId);
+    return record?.status || "present";
+  };
+
+  const toggleStatus = (id: string, currentStatus: AttendanceStatus) => {
+    const statusOrder: AttendanceStatus[] = ["present", "late", "absent"];
+    const currentIndex = statusOrder.indexOf(currentStatus);
+    const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+    
+    setAttendanceMap((prev) => ({ ...prev, [id]: nextStatus }));
   };
 
   const markAllPresent = () => {
-    setStudents((prev) => prev.map((s) => ({ ...s, status: "present" })));
-    toast.success("All students marked as present");
+    const ids = activeTab === "students" 
+      ? students?.map((s) => s.id) || []
+      : teachers?.map((t) => t.id) || [];
+    
+    const newMap: Record<string, AttendanceStatus> = {};
+    ids.forEach((id) => {
+      newMap[id] = "present";
+    });
+    setAttendanceMap(newMap);
   };
 
-  const saveAttendance = () => {
-    toast.success("Attendance saved successfully!");
+  const saveAttendance = async () => {
+    if (activeTab === "students") {
+      const allRecords = (students || []).map((s) => ({
+        studentId: s.id,
+        status: attendanceMap[s.id] || getStudentAttendanceStatus(s.id),
+      }));
+      await bulkMarkAttendance.mutateAsync({ records: allRecords, date: dateString });
+    } else {
+      for (const teacher of (teachers || [])) {
+        await markTeacherAttendance.mutateAsync({
+          teacherId: teacher.id,
+          date: dateString,
+          status: attendanceMap[teacher.id] || getTeacherAttendanceStatus(teacher.id),
+        });
+      }
+      toast.success("Teacher attendance saved");
+    }
+    setAttendanceMap({});
   };
 
-  const presentCount = students.filter((s) => s.status === "present").length;
-  const absentCount = students.filter((s) => s.status === "absent").length;
-  const lateCount = students.filter((s) => s.status === "late").length;
+  const getStats = () => {
+    const items = activeTab === "students" ? students : teachers;
+    const getStatus = activeTab === "students" ? getStudentAttendanceStatus : getTeacherAttendanceStatus;
+    
+    if (!items) return { present: 0, absent: 0, late: 0 };
+    
+    return items.reduce(
+      (acc, item) => {
+        const status = getStatus(item.id);
+        acc[status]++;
+        return acc;
+      },
+      { present: 0, absent: 0, late: 0 }
+    );
+  };
+
+  const stats = getStats();
+  const isLoading = studentsLoading || teachersLoading || attendanceLoading;
 
   return (
     <div className="space-y-6">
       <div className="page-header">
         <h1 className="page-title">Attendance</h1>
-        <p className="page-description">Track daily attendance for students and staff</p>
+        <p className="page-description">Track daily attendance for students and teachers</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Select class" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="9-A">Grade 9-A</SelectItem>
-              <SelectItem value="9-B">Grade 9-B</SelectItem>
-              <SelectItem value="10-A">Grade 10-A</SelectItem>
-              <SelectItem value="10-B">Grade 10-B</SelectItem>
-              <SelectItem value="11-A">Grade 11-A</SelectItem>
-              <SelectItem value="11-B">Grade 11-B</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="relative">
-            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-10 pl-10 pr-4 rounded-lg border border-border bg-background text-sm"
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2 justify-start text-left font-normal">
+              <CalendarIcon className="h-4 w-4" />
+              {format(date, "PPP")}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={(d) => d && setDate(d)}
+              initialFocus
             />
-          </div>
-        </div>
+          </PopoverContent>
+        </Popover>
+
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={markAllPresent} className="gap-2">
-            <CheckCircle2 className="h-4 w-4" />
+          <Button variant="outline" onClick={markAllPresent}>
+            <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark All Present
           </Button>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
-          <Button onClick={saveAttendance} className="btn-gradient">
-            Save Attendance
+          <Button 
+            className="btn-gradient" 
+            onClick={saveAttendance}
+            disabled={bulkMarkAttendance.isPending || markTeacherAttendance.isPending}
+          >
+            {bulkMarkAttendance.isPending || markTeacherAttendance.isPending ? "Saving..." : "Save Attendance"}
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="bg-success/10 border border-success/20 rounded-xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-success">Present</p>
-            <p className="text-2xl font-bold text-success">{presentCount}</p>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="glass-card p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+            <CheckCircle2 className="h-5 w-5 text-success" />
           </div>
-          <Check className="h-8 w-8 text-success" />
+          <div>
+            <p className="text-2xl font-bold">{stats.present}</p>
+            <p className="text-sm text-muted-foreground">Present</p>
+          </div>
         </div>
-        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-destructive">Absent</p>
-            <p className="text-2xl font-bold text-destructive">{absentCount}</p>
+        <div className="glass-card p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+            <Clock className="h-5 w-5 text-warning" />
           </div>
-          <X className="h-8 w-8 text-destructive" />
+          <div>
+            <p className="text-2xl font-bold">{stats.late}</p>
+            <p className="text-sm text-muted-foreground">Late</p>
+          </div>
         </div>
-        <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-warning">Late</p>
-            <p className="text-2xl font-bold text-warning">{lateCount}</p>
+        <div className="glass-card p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+            <XCircle className="h-5 w-5 text-destructive" />
           </div>
-          <CalendarIcon className="h-8 w-8 text-warning" />
+          <div>
+            <p className="text-2xl font-bold">{stats.absent}</p>
+            <p className="text-sm text-muted-foreground">Absent</p>
+          </div>
         </div>
       </div>
 
-      {/* Attendance List */}
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h3 className="font-semibold">Grade {selectedClass} - {new Date(date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</h3>
-        </div>
-        <div className="divide-y divide-border">
-          {students.map((student, index) => (
-            <div
-              key={student.id}
-              className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors opacity-0 animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                  {student.name.split(" ").map((n) => n[0]).join("")}
-                </div>
-                <div>
-                  <p className="font-medium">{student.name}</p>
-                  <p className="text-sm text-muted-foreground">Roll No: {student.rollNo}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "cursor-pointer transition-all",
-                    student.status === "present" && "bg-success/10 text-success border-success/20",
-                    student.status === "absent" && "bg-destructive/10 text-destructive border-destructive/20",
-                    student.status === "late" && "bg-warning/10 text-warning border-warning/20"
-                  )}
-                  onClick={() => toggleStatus(student.id)}
-                >
-                  {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                </Badge>
-              </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="students" className="gap-2">
+            <Users className="h-4 w-4" />
+            Students
+          </TabsTrigger>
+          <TabsTrigger value="teachers" className="gap-2">
+            <Users className="h-4 w-4" />
+            Teachers
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="students" className="mt-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ))}
-        </div>
-      </div>
+          ) : (
+            <div className="glass-card overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+                {(students || []).map((student, index) => {
+                  const status = getStudentAttendanceStatus(student.id);
+                  const StatusIcon = statusIcons[status];
+                  
+                  return (
+                    <button
+                      key={student.id}
+                      onClick={() => toggleStatus(student.id, status)}
+                      className={cn(
+                        "p-4 rounded-xl border-2 transition-all duration-200 text-left animate-fade-in",
+                        statusColors[status]
+                      )}
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center font-medium text-sm">
+                          {student.name.split(" ").map((n) => n[0]).join("")}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{student.name}</p>
+                          <p className="text-xs opacity-70">{student.roll_no || "No roll no"}</p>
+                        </div>
+                        <StatusIcon className="h-5 w-5" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {(!students || students.length === 0) && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No students found. Add students first.
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="teachers" className="mt-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="glass-card overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+                {(teachers || []).map((teacher, index) => {
+                  const status = getTeacherAttendanceStatus(teacher.id);
+                  const StatusIcon = statusIcons[status];
+                  
+                  return (
+                    <button
+                      key={teacher.id}
+                      onClick={() => toggleStatus(teacher.id, status)}
+                      className={cn(
+                        "p-4 rounded-xl border-2 transition-all duration-200 text-left animate-fade-in",
+                        statusColors[status]
+                      )}
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center font-medium text-sm">
+                          {teacher.name.split(" ").map((n) => n[0]).join("")}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{teacher.name}</p>
+                          <p className="text-xs opacity-70">{teacher.subject || "No subject"}</p>
+                        </div>
+                        <StatusIcon className="h-5 w-5" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {(!teachers || teachers.length === 0) && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No teachers found. Add teachers first.
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
