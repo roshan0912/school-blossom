@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/select";
 import { useExams, useCreateExam } from "@/hooks/useExams";
 import { useClasses } from "@/hooks/useClasses";
+import { ExamDetailsDialog } from "@/components/ViewDetailsDialogs";
+import { exportToExcel, type ExcelColumn } from "@/lib/excel";
 import { toast } from "sonner";
 
 type ExamItem = {
@@ -68,6 +70,7 @@ export default function Exams() {
   const createExam = useCreateExam();
   
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [viewingExam, setViewingExam] = useState<ExamItem | null>(null);
   const [newExam, setNewExam] = useState({
     name: "",
     subject: "",
@@ -75,6 +78,23 @@ export default function Exams() {
     total_marks: 100,
     class_id: "",
   });
+
+  const exportColumns: ExcelColumn[] = [
+    { key: "name", header: "Exam Name" },
+    { key: "subject", header: "Subject" },
+    { key: "classes.name", header: "Class" },
+    { key: "date", header: "Date" },
+    { key: "total_marks", header: "Total Marks" },
+  ];
+
+  const handleExport = () => {
+    if (exams && exams.length > 0) {
+      exportToExcel(exams as Record<string, unknown>[], exportColumns, "exams");
+      toast.success("Exams exported successfully");
+    } else {
+      toast.error("No exams to export");
+    }
+  };
 
   const handleAddExam = async () => {
     if (!newExam.name || !newExam.class_id) {
@@ -154,11 +174,11 @@ export default function Exams() {
             >
               <ClipboardList className="h-4 w-4" /> Enter Results
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem className="gap-2" onClick={() => setViewingExam(item)}>
               <FileText className="h-4 w-4" /> View Details
             </DropdownMenuItem>
             {getStatus(item.date) === "completed" && (
-              <DropdownMenuItem className="gap-2">
+              <DropdownMenuItem className="gap-2" onClick={handleExport}>
                 <Download className="h-4 w-4" /> Download Results
               </DropdownMenuItem>
             )}
@@ -204,6 +224,7 @@ export default function Exams() {
         searchPlaceholder="Search exams..."
         onAdd={() => setAddDialogOpen(true)}
         addLabel="Create Exam"
+        onExport={handleExport}
         isLoading={isLoading}
       />
 
@@ -280,6 +301,14 @@ export default function Exams() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Details Dialog */}
+      <ExamDetailsDialog
+        open={!!viewingExam}
+        onOpenChange={(open) => !open && setViewingExam(null)}
+        exam={viewingExam}
+        status={viewingExam ? getStatus(viewingExam.date) : "scheduled"}
+      />
     </div>
   );
 }

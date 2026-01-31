@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useClasses, useCreateClass, useUpdateClass, useDeleteClass } from "@/hooks/useClasses";
 import { useTeachers } from "@/hooks/useTeachers";
 import { useStudents } from "@/hooks/useStudents";
+import { ClassDetailsDialog } from "@/components/ViewDetailsDialogs";
 import type { Database } from "@/integrations/supabase/types";
 
 type ClassInsert = Database["public"]["Tables"]["classes"]["Insert"];
@@ -47,6 +48,7 @@ export default function Classes() {
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassWithTeacher | null>(null);
+  const [viewingClass, setViewingClass] = useState<ClassWithTeacher | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -162,7 +164,7 @@ export default function Classes() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem className="gap-2" onClick={() => setViewingClass(item)}>
               <Eye className="h-4 w-4" /> View Details
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2" onClick={() => handleEdit(item)}>
@@ -283,6 +285,14 @@ export default function Classes() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* View Details Dialog */}
+      <ClassDetailsDialog
+        open={!!viewingClass}
+        onOpenChange={(open) => !open && setViewingClass(null)}
+        classData={viewingClass}
+        studentCount={viewingClass ? getStudentCount(viewingClass.id) : 0}
+      />
     </div>
   );
 }

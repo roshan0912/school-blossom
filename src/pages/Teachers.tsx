@@ -23,6 +23,8 @@ import { toast } from "sonner";
 import { useTeachers, useCreateTeacher, useUpdateTeacher, useDeleteTeacher, useBulkCreateTeachers } from "@/hooks/useTeachers";
 import { ImportDialog } from "@/components/ImportDialog";
 import { exportToExcel, type ExcelColumn } from "@/lib/excel";
+import { generatePayslipPDF } from "@/lib/pdfGenerator";
+import { TeacherDetailsDialog } from "@/components/ViewDetailsDialogs";
 import type { Database } from "@/integrations/supabase/types";
 
 type SalaryStatus = Database["public"]["Enums"]["salary_status"];
@@ -63,6 +65,7 @@ export default function Teachers() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [viewingTeacher, setViewingTeacher] = useState<Teacher | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -147,6 +150,26 @@ export default function Teachers() {
     await bulkCreateTeachers.mutateAsync(data);
   };
 
+  const handleGeneratePayslip = (teacher: Teacher) => {
+    const baseSalary = teacher.salary || 0;
+    const deductions = baseSalary * 0.1;
+    const netSalary = baseSalary - deductions;
+
+    generatePayslipPDF({
+      employeeName: teacher.name,
+      employeeId: teacher.id.slice(0, 8).toUpperCase(),
+      role: "Teacher",
+      month: new Date().toLocaleString("en-IN", { month: "long" }),
+      year: new Date().getFullYear(),
+      baseSalary,
+      deductions,
+      netSalary,
+      paymentDate: new Date().toLocaleDateString("en-IN"),
+    });
+
+    toast.success("Payslip generated!");
+  };
+
   const columns = [
     {
       key: "name",
@@ -190,10 +213,10 @@ export default function Teachers() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem className="gap-2" onClick={() => setViewingTeacher(item)}>
               <Eye className="h-4 w-4" /> View Details
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem className="gap-2" onClick={() => handleGeneratePayslip(item)}>
               <FileText className="h-4 w-4" /> Generate Payslip
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2" onClick={() => handleEdit(item)}>
@@ -360,6 +383,13 @@ export default function Teachers() {
           classes: row.classes ? String(row.classes) : null,
           salary: row.salary ? Number(row.salary) : null,
         })}
+      />
+
+      {/* View Details Dialog */}
+      <TeacherDetailsDialog
+        open={!!viewingTeacher}
+        onOpenChange={(open) => !open && setViewingTeacher(null)}
+        teacher={viewingTeacher}
       />
     </div>
   );
