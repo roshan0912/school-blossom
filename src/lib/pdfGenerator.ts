@@ -31,6 +31,15 @@ interface ReportCardData {
   rank?: number;
 }
 
+// Format currency in INR
+export function formatINR(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export function calculateGrade(percentage: number): string {
   if (percentage >= 90) return "A+";
   if (percentage >= 80) return "A";
@@ -75,12 +84,12 @@ export function generatePayslipPDF(data: PayslipData): void {
   // Salary Table
   autoTable(doc, {
     startY: 95,
-    head: [["Description", "Amount"]],
+    head: [["Description", "Amount (INR)"]],
     body: [
-      ["Base Salary", `$${data.baseSalary.toLocaleString()}`],
-      ["Deductions", `- $${data.deductions.toLocaleString()}`],
+      ["Base Salary", formatINR(data.baseSalary)],
+      ["Deductions", `- ${formatINR(data.deductions)}`],
     ],
-    foot: [["Net Salary", `$${data.netSalary.toLocaleString()}`]],
+    foot: [["Net Salary", formatINR(data.netSalary)]],
     theme: "striped",
     headStyles: { fillColor: [37, 99, 235] },
     footStyles: { fillColor: [34, 197, 94], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -92,7 +101,7 @@ export function generatePayslipPDF(data: PayslipData): void {
   doc.setFontSize(10);
   doc.setTextColor(128, 128, 128);
   doc.text("This is a computer-generated document. No signature required.", 20, finalY);
-  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, finalY + 8);
+  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")}`, 20, finalY + 8);
   
   // Download
   doc.save(`Payslip_${data.employeeName.replace(/\s+/g, "_")}_${data.month}_${data.year}.pdf`);
@@ -176,7 +185,7 @@ export function generateReportCardPDF(data: ReportCardData): void {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("Principal's Signature: ____________________", 20, finalY + 55);
-  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 130, finalY + 55);
+  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")}`, 130, finalY + 55);
   
   // Download
   doc.save(`ReportCard_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
