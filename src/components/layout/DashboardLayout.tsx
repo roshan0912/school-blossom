@@ -1,8 +1,7 @@
 import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
-import { Search, Moon, Sun, LogOut } from "lucide-react";
+import { Moon, Sun, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -14,7 +13,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
-
+import { GlobalSearch } from "@/components/GlobalSearch";
 export function DashboardLayout() {
   const [isDark, setIsDark] = useState(false);
   const { user, signOut, userRole } = useAuth();
@@ -47,13 +46,7 @@ export function DashboardLayout() {
         {/* Top header */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-card/80 backdrop-blur-xl px-6">
           <div className="flex-1 flex items-center gap-4 ml-12 lg:ml-0">
-            <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search anything..."
-                className="pl-10 h-10 bg-muted/50 border-0 focus-visible:ring-1"
-              />
-            </div>
+            <GlobalSearch />
           </div>
           
           <div className="flex items-center gap-2">
