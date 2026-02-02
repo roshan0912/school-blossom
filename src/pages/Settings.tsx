@@ -6,8 +6,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building, User, Bell, Shield, Database, Loader2, Eye, EyeOff, Download, RefreshCw } from "lucide-react";
-import { useSettings } from "@/hooks/useSettings";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Building, User, Bell, Shield, Database, Loader2, Eye, EyeOff, Download, RefreshCw, Cloud, Receipt, CheckCircle, Clock, Zap } from "lucide-react";
+import { useSettings, BillingItem } from "@/hooks/useSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 
@@ -20,6 +22,8 @@ export default function Settings() {
     notificationSettings,
     backupSettings,
     profileSettings,
+    billingHistory,
+    cloudUsage,
     saveSchoolSettings,
     saveNotificationSettings,
     saveBackupSettings,
@@ -27,6 +31,7 @@ export default function Settings() {
     changePassword,
     createBackup,
     downloadLastBackup,
+    downloadInvoice,
   } = useSettings();
 
   // Local state for forms
@@ -104,6 +109,31 @@ export default function Settings() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  const getStatusBadge = (status: BillingItem["status"]) => {
+    switch (status) {
+      case "active":
+        return <Badge className="bg-success/10 text-success border-success/20">Active</Badge>;
+      case "paid":
+        return <Badge className="bg-primary/10 text-primary border-primary/20">Paid</Badge>;
+      case "pending":
+        return <Badge className="bg-warning/10 text-warning border-warning/20">Pending</Badge>;
+    }
+  };
+
+  const getTypeIcon = (type: BillingItem["type"]) => {
+    switch (type) {
+      case "subscription":
+        return <Cloud className="h-4 w-4" />;
+      case "addon":
+        return <Zap className="h-4 w-4" />;
+      case "usage":
+        return <Receipt className="h-4 w-4" />;
+    }
+  };
+
+  const totalSpent = billingHistory.reduce((sum, item) => sum + item.amount, 0);
+  const activeSubscription = billingHistory.find(b => b.type === "subscription" && b.status === "active");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -126,35 +156,42 @@ export default function Settings() {
             className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs' : ''}`}
           >
             <Building className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>School</span>
+            <span className={isMobile ? 'text-[10px]' : ''}>School</span>
           </TabsTrigger>
           <TabsTrigger 
             value="profile" 
             className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs' : ''}`}
           >
             <User className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Profile</span>
+            <span className={isMobile ? 'text-[10px]' : ''}>Profile</span>
           </TabsTrigger>
           <TabsTrigger 
             value="notifications" 
             className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs' : ''}`}
           >
             <Bell className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Alerts</span>
+            <span className={isMobile ? 'text-[10px]' : ''}>Alerts</span>
           </TabsTrigger>
           <TabsTrigger 
             value="security" 
             className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs' : ''}`}
           >
             <Shield className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Security</span>
+            <span className={isMobile ? 'text-[10px]' : ''}>Security</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="cloud" 
+            className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs' : ''}`}
+          >
+            <Cloud className="h-4 w-4" />
+            <span className={isMobile ? 'text-[10px]' : ''}>Cloud</span>
           </TabsTrigger>
           <TabsTrigger 
             value="backup" 
-            className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs col-span-2 sm:col-span-1' : ''}`}
+            className={`gap-2 data-[state=active]:bg-background ${isMobile ? 'flex-col py-2 text-xs' : ''}`}
           >
             <Database className="h-4 w-4" />
-            <span className={isMobile ? 'hidden sm:inline' : ''}>Backup</span>
+            <span className={isMobile ? 'text-[10px]' : ''}>Backup</span>
           </TabsTrigger>
         </TabsList>
 
@@ -486,6 +523,155 @@ export default function Settings() {
                   <div className="w-2 h-2 rounded-full bg-success" />
                   Active
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Cloud Usage & Billing */}
+        <TabsContent value="cloud" className="space-y-6">
+          {/* Subscription Overview */}
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cloud className="h-5 w-5 text-primary" />
+                    EduManage Cloud Pro
+                  </CardTitle>
+                  <CardDescription>Your active subscription plan</CardDescription>
+                </div>
+                <Badge className="bg-success/10 text-success border-success/20 text-sm px-3 py-1">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Active
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {activeSubscription && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="p-4 bg-background rounded-xl border">
+                    <p className="text-sm text-muted-foreground">Amount Paid</p>
+                    <p className="text-2xl font-bold text-primary">₹{activeSubscription.amount.toLocaleString("en-IN")}</p>
+                  </div>
+                  <div className="p-4 bg-background rounded-xl border">
+                    <p className="text-sm text-muted-foreground">Purchase Date</p>
+                    <p className="text-lg font-semibold">{format(new Date(activeSubscription.date), "dd MMM yyyy")}</p>
+                  </div>
+                  <div className="p-4 bg-background rounded-xl border sm:col-span-2 lg:col-span-1">
+                    <p className="text-sm text-muted-foreground">Valid Till</p>
+                    <p className="text-lg font-semibold text-success">{activeSubscription.validTill ? format(new Date(activeSubscription.validTill), "dd MMM yyyy") : "N/A"}</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Resource Usage */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resource Usage</CardTitle>
+              <CardDescription>Current cloud resource consumption</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Storage</span>
+                  <span className="text-muted-foreground">{cloudUsage.storageUsed} GB / {cloudUsage.storageLimit} GB</span>
+                </div>
+                <Progress value={(cloudUsage.storageUsed / cloudUsage.storageLimit) * 100} className="h-2" />
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">API Calls (This Month)</span>
+                  <span className="text-muted-foreground">{cloudUsage.apiCalls.toLocaleString()} / {cloudUsage.apiLimit.toLocaleString()}</span>
+                </div>
+                <Progress value={(cloudUsage.apiCalls / cloudUsage.apiLimit) * 100} className="h-2" />
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Active Users</span>
+                  <span className="text-muted-foreground">{cloudUsage.activeUsers} / {cloudUsage.userLimit}</span>
+                </div>
+                <Progress value={(cloudUsage.activeUsers / cloudUsage.userLimit) * 100} className="h-2" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Billing History */}
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Billing History</CardTitle>
+                  <CardDescription>All your payments and invoices</CardDescription>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Total Spent</p>
+                  <p className="text-xl font-bold text-primary">₹{totalSpent.toLocaleString("en-IN")}</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {billingHistory.map((bill) => (
+                  <div 
+                    key={bill.id} 
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-muted/50 rounded-xl hover:bg-muted/70 transition-colors"
+                  >
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="p-2 rounded-lg bg-background border shrink-0">
+                        {getTypeIcon(bill.type)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium truncate">{bill.name}</p>
+                          {getStatusBadge(bill.status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{bill.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(bill.date), "dd MMM yyyy")}
+                          {bill.validTill && ` • Valid till ${format(new Date(bill.validTill), "dd MMM yyyy")}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                      <p className="font-semibold text-lg">₹{bill.amount.toLocaleString("en-IN")}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => downloadInvoice(bill)}
+                        className="gap-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        <span className="hidden sm:inline">Invoice</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Add-ons Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Active Add-ons</CardTitle>
+              <CardDescription>Premium features enabled for your account</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {billingHistory.filter(b => b.type === "addon").map((addon) => (
+                  <div key={addon.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{addon.name}</p>
+                      <p className="text-xs text-muted-foreground">₹{addon.amount}/lifetime</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

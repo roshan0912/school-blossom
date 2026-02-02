@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -33,6 +33,26 @@ export interface ProfileSettings {
   avatarUrl: string | null;
 }
 
+export interface BillingItem {
+  id: string;
+  name: string;
+  description: string;
+  amount: number;
+  date: string;
+  validTill?: string;
+  status: "paid" | "pending" | "active";
+  type: "subscription" | "addon" | "usage";
+}
+
+export interface CloudUsage {
+  storageUsed: number;
+  storageLimit: number;
+  apiCalls: number;
+  apiLimit: number;
+  activeUsers: number;
+  userLimit: number;
+}
+
 const defaultSchoolSettings: SchoolSettings = {
   schoolName: "EduManage School",
   contactEmail: "admin@edumanage.edu",
@@ -56,28 +76,78 @@ const defaultBackupSettings: BackupSettings = {
   lastBackup: null,
 };
 
+// Demo billing data for client presentation
+const demoBillingHistory: BillingItem[] = [
+  {
+    id: "bill-001",
+    name: "EduManage Cloud Pro",
+    description: "Annual subscription with unlimited students & teachers",
+    amount: 6700,
+    date: "2025-01-15",
+    validTill: "2029-01-15",
+    status: "active",
+    type: "subscription",
+  },
+  {
+    id: "bill-002",
+    name: "Advanced Analytics Module",
+    description: "Graph generator & chart visualizations",
+    amount: 299,
+    date: "2025-01-15",
+    status: "paid",
+    type: "addon",
+  },
+  {
+    id: "bill-003",
+    name: "Excel Export Pro",
+    description: "Advanced Excel sheet generator with templates",
+    amount: 199,
+    date: "2025-01-15",
+    status: "paid",
+    type: "addon",
+  },
+  {
+    id: "bill-004",
+    name: "PDF Report Generator",
+    description: "Custom PDF reports and payslips",
+    amount: 149,
+    date: "2025-01-15",
+    status: "paid",
+    type: "addon",
+  },
+  {
+    id: "bill-005",
+    name: "SMS Notifications",
+    description: "1000 SMS credits for attendance alerts",
+    amount: 99,
+    date: "2025-02-01",
+    status: "paid",
+    type: "usage",
+  },
+];
+
+const demoCloudUsage: CloudUsage = {
+  storageUsed: 2.4,
+  storageLimit: 50,
+  apiCalls: 12450,
+  apiLimit: 100000,
+  activeUsers: 8,
+  userLimit: 50,
+};
+
 export function useSettings() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // School settings (stored in localStorage)
-  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(() => {
-    const stored = localStorage.getItem("school_settings");
-    return stored ? JSON.parse(stored) : defaultSchoolSettings;
-  });
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(defaultSchoolSettings);
 
   // Notification settings (stored in localStorage)
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
-    const stored = localStorage.getItem("notification_settings");
-    return stored ? JSON.parse(stored) : defaultNotificationSettings;
-  });
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
 
   // Backup settings (stored in localStorage)
-  const [backupSettings, setBackupSettings] = useState<BackupSettings>(() => {
-    const stored = localStorage.getItem("backup_settings");
-    return stored ? JSON.parse(stored) : defaultBackupSettings;
-  });
+  const [backupSettings, setBackupSettings] = useState<BackupSettings>(defaultBackupSettings);
 
   // Profile settings (fetched from Supabase)
   const [profileSettings, setProfileSettings] = useState<ProfileSettings>({
@@ -86,6 +156,40 @@ export function useSettings() {
     phone: "",
     avatarUrl: null,
   });
+
+  // Billing data
+  const [billingHistory] = useState<BillingItem[]>(demoBillingHistory);
+  const [cloudUsage] = useState<CloudUsage>(demoCloudUsage);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    const storedSchool = localStorage.getItem("school_settings");
+    if (storedSchool) {
+      try {
+        setSchoolSettings(JSON.parse(storedSchool));
+      } catch (e) {
+        console.error("Error parsing school settings:", e);
+      }
+    }
+
+    const storedNotif = localStorage.getItem("notification_settings");
+    if (storedNotif) {
+      try {
+        setNotificationSettings(JSON.parse(storedNotif));
+      } catch (e) {
+        console.error("Error parsing notification settings:", e);
+      }
+    }
+
+    const storedBackup = localStorage.getItem("backup_settings");
+    if (storedBackup) {
+      try {
+        setBackupSettings(JSON.parse(storedBackup));
+      } catch (e) {
+        console.error("Error parsing backup settings:", e);
+      }
+    }
+  }, []);
 
   // Load profile from Supabase
   useEffect(() => {
@@ -128,25 +232,25 @@ export function useSettings() {
   }, [user]);
 
   // Save school settings
-  const saveSchoolSettings = (settings: SchoolSettings) => {
+  const saveSchoolSettings = useCallback((settings: SchoolSettings) => {
     setSchoolSettings(settings);
     localStorage.setItem("school_settings", JSON.stringify(settings));
-    toast.success("School settings saved!");
-  };
+    toast.success("School settings saved successfully!");
+  }, []);
 
   // Save notification settings
-  const saveNotificationSettings = (settings: NotificationSettings) => {
+  const saveNotificationSettings = useCallback((settings: NotificationSettings) => {
     setNotificationSettings(settings);
     localStorage.setItem("notification_settings", JSON.stringify(settings));
     toast.success("Notification preferences saved!");
-  };
+  }, []);
 
   // Save backup settings
-  const saveBackupSettings = (settings: BackupSettings) => {
+  const saveBackupSettings = useCallback((settings: BackupSettings) => {
     setBackupSettings(settings);
     localStorage.setItem("backup_settings", JSON.stringify(settings));
     toast.success("Backup settings saved!");
-  };
+  }, []);
 
   // Save profile settings to Supabase
   const saveProfileSettings = async (settings: ProfileSettings) => {
@@ -285,6 +389,59 @@ export function useSettings() {
     createBackup();
   };
 
+  // Download invoice
+  const downloadInvoice = (bill: BillingItem) => {
+    const invoiceContent = `
+INVOICE
+=======================================================
+
+Invoice No: INV-${bill.id.toUpperCase()}
+Date: ${new Date(bill.date).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}
+
+Bill To:
+${schoolSettings.schoolName}
+${schoolSettings.address}
+Email: ${schoolSettings.contactEmail}
+Phone: ${schoolSettings.phone}
+
+-------------------------------------------------------
+ITEM DETAILS
+-------------------------------------------------------
+
+Item: ${bill.name}
+Description: ${bill.description}
+${bill.validTill ? `Validity: ${new Date(bill.date).toLocaleDateString("en-IN")} to ${new Date(bill.validTill).toLocaleDateString("en-IN")}` : ""}
+
+Amount: ₹${bill.amount.toLocaleString("en-IN")}
+
+-------------------------------------------------------
+
+Subtotal: ₹${bill.amount.toLocaleString("en-IN")}
+GST (18%): ₹${Math.round(bill.amount * 0.18).toLocaleString("en-IN")}
+-------------------------------------------------------
+TOTAL: ₹${Math.round(bill.amount * 1.18).toLocaleString("en-IN")}
+
+=======================================================
+Payment Status: ${bill.status.toUpperCase()}
+=======================================================
+
+Thank you for choosing EduManage Cloud!
+For support: support@edumanage.cloud
+    `.trim();
+
+    const blob = new Blob([invoiceContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${bill.id}-${bill.date}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success("Invoice downloaded!");
+  };
+
   return {
     isLoading,
     isSaving,
@@ -292,6 +449,8 @@ export function useSettings() {
     notificationSettings,
     backupSettings,
     profileSettings,
+    billingHistory,
+    cloudUsage,
     saveSchoolSettings,
     saveNotificationSettings,
     saveBackupSettings,
@@ -299,5 +458,6 @@ export function useSettings() {
     changePassword,
     createBackup,
     downloadLastBackup,
+    downloadInvoice,
   };
 }
