@@ -2,29 +2,22 @@ import { useState } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Eye, Loader2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useBulkCreateStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
 import { ImportDialog } from "@/components/ImportDialog";
 import { exportToExcel, type ExcelColumn } from "@/lib/excel";
 import { StudentDetailsDialog } from "@/components/ViewDetailsDialogs";
+import { StudentFormDialog } from "@/components/StudentFormDialog";
+import { SendMessageDialog } from "@/components/SendMessageDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
@@ -42,6 +35,33 @@ interface StudentWithClass {
   photo_url: string | null;
   created_at: string;
   updated_at: string;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  blood_group?: string | null;
+  nationality?: string | null;
+  religion?: string | null;
+  category?: string | null;
+  aadhar_number?: string | null;
+  email?: string | null;
+  admission_no?: string | null;
+  admission_date?: string | null;
+  previous_school?: string | null;
+  mother_name?: string | null;
+  father_occupation?: string | null;
+  mother_occupation?: string | null;
+  guardian_name?: string | null;
+  guardian_relation?: string | null;
+  guardian_phone?: string | null;
+  permanent_address?: string | null;
+  city?: string | null;
+  district?: string | null;
+  state?: string | null;
+  pin_code?: string | null;
+  medical_conditions?: string | null;
+  transport_required?: boolean | null;
+  pickup_point?: string | null;
+  emergency_contact?: string | null;
+  emergency_phone?: string | null;
   classes: { id: string; name: string } | null;
 }
 
@@ -65,6 +85,7 @@ const exportColumns: ExcelColumn[] = [
   { key: "classes.name", header: "Class" },
   { key: "parent_name", header: "Parent/Guardian" },
   { key: "phone", header: "Phone" },
+  { key: "email", header: "Email" },
   { key: "fee_status", header: "Fee Status" },
 ];
 
@@ -80,62 +101,65 @@ export default function Students() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithClass | null>(null);
   const [viewingStudent, setViewingStudent] = useState<StudentWithClass | null>(null);
+  
+  // Messaging state
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageRecipient, setMessageRecipient] = useState<StudentWithClass | null>(null);
+  const [isBulkMessage, setIsBulkMessage] = useState(false);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    roll_no: "",
-    class_id: "",
-    parent_name: "",
-    phone: "",
-    address: "",
-    fee_status: "pending" as FeeStatus,
-  });
+  const handleSubmit = async (formData: any) => {
+    const studentData: StudentInsert = {
+      name: formData.name,
+      roll_no: formData.roll_no || null,
+      class_id: formData.class_id || null,
+      date_of_birth: formData.date_of_birth || null,
+      gender: formData.gender || null,
+      blood_group: formData.blood_group || null,
+      nationality: formData.nationality || null,
+      religion: formData.religion || null,
+      category: formData.category || null,
+      aadhar_number: formData.aadhar_number || null,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      admission_no: formData.admission_no || null,
+      admission_date: formData.admission_date || null,
+      previous_school: formData.previous_school || null,
+      parent_name: formData.parent_name || null,
+      mother_name: formData.mother_name || null,
+      father_occupation: formData.father_occupation || null,
+      mother_occupation: formData.mother_occupation || null,
+      guardian_name: formData.guardian_name || null,
+      guardian_relation: formData.guardian_relation || null,
+      guardian_phone: formData.guardian_phone || null,
+      address: formData.address || null,
+      permanent_address: formData.permanent_address || null,
+      city: formData.city || null,
+      district: formData.district || null,
+      state: formData.state || null,
+      pin_code: formData.pin_code || null,
+      medical_conditions: formData.medical_conditions || null,
+      emergency_contact: formData.emergency_contact || null,
+      emergency_phone: formData.emergency_phone || null,
+      transport_required: formData.transport_required || false,
+      pickup_point: formData.pickup_point || null,
+      fee_status: formData.fee_status || "pending",
+    };
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      roll_no: "",
-      class_id: "",
-      parent_name: "",
-      phone: "",
-      address: "",
-      fee_status: "pending",
-    });
-    setEditingStudent(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
     if (editingStudent) {
       await updateStudent.mutateAsync({
         id: editingStudent.id,
-        ...formData,
-        class_id: formData.class_id || null,
+        ...studentData,
       });
     } else {
-      await createStudent.mutateAsync({
-        ...formData,
-        class_id: formData.class_id || null,
-      });
+      await createStudent.mutateAsync(studentData);
     }
     
     setIsAddDialogOpen(false);
-    resetForm();
+    setEditingStudent(null);
   };
 
   const handleEdit = (student: StudentWithClass) => {
     setEditingStudent(student);
-    setFormData({
-      name: student.name,
-      roll_no: student.roll_no || "",
-      class_id: student.class_id || "",
-      parent_name: student.parent_name || "",
-      phone: student.phone || "",
-      address: student.address || "",
-      fee_status: student.fee_status || "pending",
-    });
     setIsAddDialogOpen(true);
   };
 
@@ -143,6 +167,18 @@ export default function Students() {
     if (confirm("Are you sure you want to delete this student?")) {
       await deleteStudent.mutateAsync(id);
     }
+  };
+
+  const handleSendMessage = (student: StudentWithClass) => {
+    setMessageRecipient(student);
+    setIsBulkMessage(false);
+    setMessageDialogOpen(true);
+  };
+
+  const handleBulkMessage = () => {
+    setMessageRecipient(null);
+    setIsBulkMessage(true);
+    setMessageDialogOpen(true);
   };
 
   const handleExport = () => {
@@ -207,6 +243,14 @@ export default function Students() {
             <DropdownMenuItem className="gap-2" onClick={() => handleEdit(item)}>
               <Pencil className="h-4 w-4" /> Edit
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2" onClick={() => handleSendMessage(item)}>
+              <MessageSquare className="h-4 w-4" /> Send SMS
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2" onClick={() => handleSendMessage(item)}>
+              <Mail className="h-4 w-4" /> Send Email
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(item.id)}>
               <Trash2 className="h-4 w-4" /> Delete
             </DropdownMenuItem>
@@ -232,11 +276,29 @@ export default function Students() {
     );
   }
 
+  const allStudentsForMessaging = (students || []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    phone: s.phone,
+    email: s.email,
+  }));
+
   return (
     <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Students</h1>
-        <p className="page-description">Manage student records, attendance, and fee status</p>
+      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">Students</h1>
+          <p className="page-description">Manage student records, attendance, and fee status</p>
+        </div>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={handleBulkMessage}
+          disabled={!students || students.length === 0}
+        >
+          <Users className="h-4 w-4" />
+          Message All Students
+        </Button>
       </div>
 
       <DataTable
@@ -244,7 +306,7 @@ export default function Students() {
         columns={columns}
         searchPlaceholder="Search students..."
         onAdd={() => {
-          resetForm();
+          setEditingStudent(null);
           setIsAddDialogOpen(true);
         }}
         addLabel="Add Student"
@@ -253,108 +315,53 @@ export default function Students() {
       />
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-        setIsAddDialogOpen(open);
-        if (!open) resetForm();
-      }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingStudent ? "Edit Student" : "Add New Student"}</DialogTitle>
-            <DialogDescription>
-              {editingStudent ? "Update student information" : "Enter the student's details"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="roll_no">Roll No</Label>
-                <Input
-                  id="roll_no"
-                  value={formData.roll_no}
-                  onChange={(e) => setFormData({ ...formData, roll_no: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="class">Class</Label>
-                <Select
-                  value={formData.class_id}
-                  onValueChange={(value) => setFormData({ ...formData, class_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes?.map((cls) => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="parent_name">Parent/Guardian</Label>
-              <Input
-                id="parent_name"
-                value={formData.parent_name}
-                onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fee_status">Fee Status</Label>
-                <Select
-                  value={formData.fee_status}
-                  onValueChange={(value: FeeStatus) => setFormData({ ...formData, fee_status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="btn-gradient" disabled={createStudent.isPending || updateStudent.isPending}>
-                {createStudent.isPending || updateStudent.isPending ? "Saving..." : editingStudent ? "Update" : "Add Student"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <StudentFormDialog
+        open={isAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) setEditingStudent(null);
+        }}
+        classes={classes || []}
+        initialData={editingStudent ? {
+          name: editingStudent.name,
+          roll_no: editingStudent.roll_no || "",
+          class_id: editingStudent.class_id || "",
+          date_of_birth: editingStudent.date_of_birth || "",
+          gender: editingStudent.gender || "",
+          blood_group: editingStudent.blood_group || "",
+          nationality: editingStudent.nationality || "Indian",
+          religion: editingStudent.religion || "",
+          category: editingStudent.category || "",
+          aadhar_number: editingStudent.aadhar_number || "",
+          email: editingStudent.email || "",
+          phone: editingStudent.phone || "",
+          admission_no: editingStudent.admission_no || "",
+          admission_date: editingStudent.admission_date || "",
+          previous_school: editingStudent.previous_school || "",
+          parent_name: editingStudent.parent_name || "",
+          mother_name: editingStudent.mother_name || "",
+          father_occupation: editingStudent.father_occupation || "",
+          mother_occupation: editingStudent.mother_occupation || "",
+          guardian_name: editingStudent.guardian_name || "",
+          guardian_relation: editingStudent.guardian_relation || "",
+          guardian_phone: editingStudent.guardian_phone || "",
+          address: editingStudent.address || "",
+          permanent_address: editingStudent.permanent_address || "",
+          city: editingStudent.city || "",
+          district: editingStudent.district || "",
+          state: editingStudent.state || "",
+          pin_code: editingStudent.pin_code || "",
+          medical_conditions: editingStudent.medical_conditions || "",
+          emergency_contact: editingStudent.emergency_contact || "",
+          emergency_phone: editingStudent.emergency_phone || "",
+          transport_required: editingStudent.transport_required || false,
+          pickup_point: editingStudent.pickup_point || "",
+          fee_status: editingStudent.fee_status || "pending",
+        } : null}
+        isEditing={!!editingStudent}
+        onSubmit={handleSubmit}
+        isSubmitting={createStudent.isPending || updateStudent.isPending}
+      />
 
       {/* Import Dialog */}
       <ImportDialog<StudentInsert>
@@ -379,6 +386,21 @@ export default function Students() {
         open={!!viewingStudent}
         onOpenChange={(open) => !open && setViewingStudent(null)}
         student={viewingStudent}
+      />
+
+      {/* Send Message Dialog */}
+      <SendMessageDialog
+        open={messageDialogOpen}
+        onOpenChange={setMessageDialogOpen}
+        recipientType="student"
+        recipient={messageRecipient ? {
+          id: messageRecipient.id,
+          name: messageRecipient.name,
+          phone: messageRecipient.phone,
+          email: messageRecipient.email,
+        } : null}
+        allRecipients={allStudentsForMessaging}
+        isBulk={isBulkMessage}
       />
     </div>
   );

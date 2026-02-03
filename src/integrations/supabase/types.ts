@@ -132,6 +132,48 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          message_type: string
+          recipient_contact: string | null
+          recipient_id: string | null
+          recipient_name: string | null
+          recipient_type: string
+          sent_at: string
+          status: string | null
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          message_type: string
+          recipient_contact?: string | null
+          recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_type: string
+          sent_at?: string
+          status?: string | null
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          message_type?: string
+          recipient_contact?: string | null
+          recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_type?: string
+          sent_at?: string
+          status?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -272,42 +314,123 @@ export type Database = {
       }
       students: {
         Row: {
+          aadhar_number: string | null
           address: string | null
+          admission_date: string | null
+          admission_no: string | null
+          blood_group: string | null
+          category: string | null
+          city: string | null
           class_id: string | null
           created_at: string
+          date_of_birth: string | null
+          district: string | null
+          email: string | null
+          emergency_contact: string | null
+          emergency_phone: string | null
+          father_occupation: string | null
           fee_status: Database["public"]["Enums"]["fee_status"] | null
+          gender: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          guardian_relation: string | null
           id: string
+          medical_conditions: string | null
+          mother_name: string | null
+          mother_occupation: string | null
           name: string
+          nationality: string | null
           parent_name: string | null
+          permanent_address: string | null
           phone: string | null
           photo_url: string | null
+          pickup_point: string | null
+          pin_code: string | null
+          previous_school: string | null
+          religion: string | null
           roll_no: string | null
+          state: string | null
+          transport_required: boolean | null
           updated_at: string
         }
         Insert: {
+          aadhar_number?: string | null
           address?: string | null
+          admission_date?: string | null
+          admission_no?: string | null
+          blood_group?: string | null
+          category?: string | null
+          city?: string | null
           class_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          district?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          father_occupation?: string | null
           fee_status?: Database["public"]["Enums"]["fee_status"] | null
+          gender?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          guardian_relation?: string | null
           id?: string
+          medical_conditions?: string | null
+          mother_name?: string | null
+          mother_occupation?: string | null
           name: string
+          nationality?: string | null
           parent_name?: string | null
+          permanent_address?: string | null
           phone?: string | null
           photo_url?: string | null
+          pickup_point?: string | null
+          pin_code?: string | null
+          previous_school?: string | null
+          religion?: string | null
           roll_no?: string | null
+          state?: string | null
+          transport_required?: boolean | null
           updated_at?: string
         }
         Update: {
+          aadhar_number?: string | null
           address?: string | null
+          admission_date?: string | null
+          admission_no?: string | null
+          blood_group?: string | null
+          category?: string | null
+          city?: string | null
           class_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          district?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          father_occupation?: string | null
           fee_status?: Database["public"]["Enums"]["fee_status"] | null
+          gender?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          guardian_relation?: string | null
           id?: string
+          medical_conditions?: string | null
+          mother_name?: string | null
+          mother_occupation?: string | null
           name?: string
+          nationality?: string | null
           parent_name?: string | null
+          permanent_address?: string | null
           phone?: string | null
           photo_url?: string | null
+          pickup_point?: string | null
+          pin_code?: string | null
+          previous_school?: string | null
+          religion?: string | null
           roll_no?: string | null
+          state?: string | null
+          transport_required?: boolean | null
           updated_at?: string
         }
         Relationships: [
@@ -354,41 +477,92 @@ export type Database = {
       }
       teachers: {
         Row: {
+          aadhar_number: string | null
+          bank_account: string | null
+          bank_name: string | null
+          blood_group: string | null
+          city: string | null
           classes: string | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
+          emergency_contact: string | null
+          emergency_phone: string | null
+          experience_years: number | null
+          gender: string | null
           id: string
+          ifsc_code: string | null
+          joining_date: string | null
           name: string
+          nationality: string | null
+          permanent_address: string | null
           phone: string | null
           photo_url: string | null
+          pin_code: string | null
+          qualification: string | null
           salary: number | null
           salary_status: Database["public"]["Enums"]["salary_status"] | null
+          state: string | null
           subject: string | null
           updated_at: string
         }
         Insert: {
+          aadhar_number?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          blood_group?: string | null
+          city?: string | null
           classes?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          experience_years?: number | null
+          gender?: string | null
           id?: string
+          ifsc_code?: string | null
+          joining_date?: string | null
           name: string
+          nationality?: string | null
+          permanent_address?: string | null
           phone?: string | null
           photo_url?: string | null
+          pin_code?: string | null
+          qualification?: string | null
           salary?: number | null
           salary_status?: Database["public"]["Enums"]["salary_status"] | null
+          state?: string | null
           subject?: string | null
           updated_at?: string
         }
         Update: {
+          aadhar_number?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          blood_group?: string | null
+          city?: string | null
           classes?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          experience_years?: number | null
+          gender?: string | null
           id?: string
+          ifsc_code?: string | null
+          joining_date?: string | null
           name?: string
+          nationality?: string | null
+          permanent_address?: string | null
           phone?: string | null
           photo_url?: string | null
+          pin_code?: string | null
+          qualification?: string | null
           salary?: number | null
           salary_status?: Database["public"]["Enums"]["salary_status"] | null
+          state?: string | null
           subject?: string | null
           updated_at?: string
         }
