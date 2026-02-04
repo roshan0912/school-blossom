@@ -66,6 +66,37 @@ export function SendMessageDialog({
         return;
       }
 
+      let successCount = 0;
+      let failCount = 0;
+
+      // Send actual SMS messages via Twilio
+      if (messageType === "sms") {
+        for (const r of recipients) {
+          if (!r.phone) {
+            failCount++;
+            continue;
+          }
+
+          try {
+            const { data, error } = await supabase.functions.invoke('send-sms', {
+              body: { to: r.phone, message: message }
+            });
+
+            if (error) throw error;
+            
+            if (data.success) {
+              successCount++;
+            } else {
+              failCount++;
+              console.error(`Failed to send SMS to ${r.name}:`, data.error);
+            }
+          } catch (err) {
+            failCount++;
+            console.error(`Failed to send SMS to ${r.name}:`, err);
+          }
+        }
+      }
+
       // Log messages to database
       const messageRecords = recipients.map((r) => ({
         recipient_type: isBulk ? `all_${recipientType}s` : recipientType,
@@ -75,22 +106,27 @@ export function SendMessageDialog({
         message_type: messageType,
         subject: messageType === "email" ? subject : null,
         message: message,
-        status: "sent",
+        status: messageType === "sms" ? (successCount > 0 ? "sent" : "failed") : "sent",
       }));
 
       const { error } = await supabase.from("messages").insert(messageRecords);
 
       if (error) throw error;
 
-      // Simulate sending (in production, integrate with SMS/Email API)
-      toast.success(
-        `${messageType === "sms" ? "SMS" : "Email"} sent to ${
-          isBulk ? `${recipients.length} ${recipientType}s` : recipient?.name
-        }`,
-        {
-          description: "Message has been queued for delivery",
+      if (messageType === "sms") {
+        if (successCount > 0 && failCount === 0) {
+          toast.success(`SMS sent successfully to ${successCount} recipient(s)`);
+        } else if (successCount > 0 && failCount > 0) {
+          toast.warning(`SMS sent to ${successCount} recipient(s), failed for ${failCount}`);
+        } else {
+          toast.error("Failed to send SMS to all recipients");
         }
-      );
+      } else {
+        toast.success(
+          `Email logged for ${isBulk ? `${recipients.length} ${recipientType}s` : recipient?.name}`,
+          { description: "Email sending requires additional integration" }
+        );
+      }
 
       setMessage("");
       setSubject("");
