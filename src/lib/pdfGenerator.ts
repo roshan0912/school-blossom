@@ -60,7 +60,7 @@ export function generatePayslipPDF(data: PayslipData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
-  doc.text("EduManage", 20, 25);
+  doc.text("Vedanta Valley", 20, 25);
   
   doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
@@ -117,7 +117,7 @@ export function generateReportCardPDF(data: ReportCardData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
-  doc.text("EduManage School", 20, 20);
+  doc.text("Vedanta Valley Public School", 20, 20);
   
   doc.setFontSize(16);
   doc.text("REPORT CARD", 20, 32);

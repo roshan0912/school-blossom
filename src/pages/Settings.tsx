@@ -537,7 +537,7 @@ export default function Settings() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Cloud className="h-5 w-5 text-primary" />
-                    EduManage Cloud Pro
+                    School Management System
                   </CardTitle>
                   <CardDescription>Your active subscription plan</CardDescription>
                 </div>

@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Users, MapPin, Heart, Bus } from "lucide-react";
+import { User, Users, MapPin, Heart, Bus, Camera } from "lucide-react";
+import { PhotoUpload } from "@/components/PhotoUpload";
 import type { Database } from "@/integrations/supabase/types";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
@@ -59,6 +60,7 @@ interface StudentFormData {
   transport_required: boolean;
   pickup_point: string;
   fee_status: FeeStatus;
+  photo_url: string | null;
 }
 
 interface StudentFormDialogProps {
@@ -106,6 +108,7 @@ const defaultFormData: StudentFormData = {
   transport_required: false,
   pickup_point: "",
   fee_status: "pending",
+  photo_url: null,
 };
 
 export function StudentFormDialog({
@@ -136,7 +139,7 @@ export function StudentFormDialog({
     await onSubmit(formData);
   };
 
-  const updateField = (field: keyof StudentFormData, value: string | boolean) => {
+  const updateField = (field: keyof StudentFormData, value: string | boolean | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -152,7 +155,11 @@ export function StudentFormDialog({
 
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsList className="grid w-full grid-cols-6 mb-4">
+              <TabsTrigger value="photo" className="text-xs gap-1">
+                <Camera className="h-3 w-3" />
+                Photo
+              </TabsTrigger>
               <TabsTrigger value="basic" className="text-xs gap-1">
                 <User className="h-3 w-3" />
                 Basic
@@ -175,6 +182,21 @@ export function StudentFormDialog({
             </TabsList>
 
             <ScrollArea className="h-[400px] pr-4">
+              {/* Photo Tab */}
+              <TabsContent value="photo" className="space-y-4 mt-0">
+                <div className="flex flex-col items-center justify-center py-8">
+                  <PhotoUpload
+                    currentPhotoUrl={formData.photo_url}
+                    onPhotoChange={(url) => updateField("photo_url", url)}
+                    folder="students"
+                    name={formData.name}
+                  />
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Upload a passport size photo (max 5MB)
+                  </p>
+                </div>
+              </TabsContent>
+
               {/* Basic Information */}
               <TabsContent value="basic" className="space-y-4 mt-0">
                 <div className="grid grid-cols-2 gap-4">
@@ -458,13 +480,24 @@ export function StudentFormDialog({
                     value={formData.address}
                     onChange={(e) => updateField("address", e.target.value)}
                     placeholder="House No, Street, Locality"
-                    rows={2}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="permanent_address">Permanent Address</Label>
+                  <Textarea
+                    id="permanent_address"
+                    value={formData.permanent_address}
+                    onChange={(e) => updateField("permanent_address", e.target.value)}
+                    placeholder="House No, Street, Locality"
+                    rows={3}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city">City / Village</Label>
+                    <Label htmlFor="city">City</Label>
                     <Input
                       id="city"
                       value={formData.city}
@@ -500,29 +533,18 @@ export function StudentFormDialog({
                     />
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="permanent_address">Permanent Address (if different)</Label>
-                  <Textarea
-                    id="permanent_address"
-                    value={formData.permanent_address}
-                    onChange={(e) => updateField("permanent_address", e.target.value)}
-                    placeholder="Leave empty if same as current address"
-                    rows={2}
-                  />
-                </div>
               </TabsContent>
 
               {/* Other Details */}
               <TabsContent value="other" className="space-y-4 mt-0">
                 <div className="space-y-2">
-                  <Label htmlFor="medical_conditions">Medical Conditions / Allergies</Label>
+                  <Label htmlFor="medical_conditions">Medical Conditions</Label>
                   <Textarea
                     id="medical_conditions"
                     value={formData.medical_conditions}
                     onChange={(e) => updateField("medical_conditions", e.target.value)}
-                    placeholder="Any medical conditions, allergies, or special needs"
-                    rows={2}
+                    placeholder="Any allergies, chronic conditions, or special medical needs"
+                    rows={3}
                   />
                 </div>
 
@@ -546,31 +568,28 @@ export function StudentFormDialog({
                 </div>
 
                 <div className="border-t pt-4 mt-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <Bus className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <Label htmlFor="transport_required" className="text-sm font-medium">
-                          Transport Required
-                        </Label>
-                        <p className="text-xs text-muted-foreground">Student needs school bus service</p>
-                      </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="transport">Transport Required</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Does the student need school transport?
+                      </p>
                     </div>
                     <Switch
-                      id="transport_required"
+                      id="transport"
                       checked={formData.transport_required}
                       onCheckedChange={(checked) => updateField("transport_required", checked)}
                     />
                   </div>
 
                   {formData.transport_required && (
-                    <div className="space-y-2 mt-4">
+                    <div className="space-y-2">
                       <Label htmlFor="pickup_point">Pickup Point</Label>
                       <Input
                         id="pickup_point"
                         value={formData.pickup_point}
                         onChange={(e) => updateField("pickup_point", e.target.value)}
-                        placeholder="Bus stop or pickup location"
+                        placeholder="e.g., Near City Mall, Main Road"
                       />
                     </div>
                   )}

@@ -54,11 +54,11 @@ export interface CloudUsage {
 }
 
 const defaultSchoolSettings: SchoolSettings = {
-  schoolName: "EduManage School",
-  contactEmail: "admin@edumanage.edu",
+  schoolName: "Vedanta Valley Public School",
+  contactEmail: "admin@vedantavalley.edu",
   phone: "+91 98765-43210",
-  website: "www.edumanage.edu",
-  address: "123 Education Street, City, State 123456",
+  website: "www.vedantavalley.edu",
+  address: "Vedanta Valley, City, State 123456",
   academicYear: "2025-2026",
   gradingSystem: "percentage",
 };
@@ -76,12 +76,11 @@ const defaultBackupSettings: BackupSettings = {
   lastBackup: null,
 };
 
-// Demo billing data for client presentation
 const demoBillingHistory: BillingItem[] = [
   {
     id: "bill-001",
-    name: "EduManage Cloud Pro",
-    description: "Annual subscription with unlimited students & teachers",
+    name: "School Management System",
+    description: "Complete school management solution",
     amount: 6700,
     date: "2026-02-01",
     validTill: "2029-02-01",
@@ -359,7 +358,7 @@ export function useSettings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `edumanage-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `vedantavalley-backup-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -425,8 +424,8 @@ TOTAL: ₹${Math.round(bill.amount * 1.18).toLocaleString("en-IN")}
 Payment Status: ${bill.status.toUpperCase()}
 =======================================================
 
-Thank you for choosing EduManage Cloud!
-For support: support@edumanage.cloud
+Thank you for choosing Vedanta Valley Public School!
+For support: admin@vedantavalley.edu
     `.trim();
 
     const blob = new Blob([invoiceContent], { type: "text/plain" });
