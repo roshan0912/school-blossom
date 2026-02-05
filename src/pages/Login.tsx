@@ -77,34 +77,20 @@ export default function Login() {
               <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
                 <School className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">EduManage</span>
+              <span className="text-2xl font-bold">Vedanta Valley</span>
             </div>
           </div>
           
           <div className="space-y-6">
             <h1 className="text-4xl font-bold leading-tight">
-              Manage your school<br />with ease and efficiency
+              Vedanta Valley<br />Public School
             </h1>
             <p className="text-lg text-white/80 max-w-md">
               A complete solution for student management, attendance tracking, payroll processing, and more.
             </p>
-            <div className="flex items-center gap-8 pt-4">
-              <div>
-                <p className="text-3xl font-bold">1,200+</p>
-                <p className="text-white/70">Schools</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold">50K+</p>
-                <p className="text-white/70">Students</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold">99%</p>
-                <p className="text-white/70">Uptime</p>
-              </div>
-            </div>
           </div>
           
-          <p className="text-sm text-white/60">© 2026 EduManage. All rights reserved.</p>
+          <p className="text-sm text-white/60">Made by Roshan Dev & Co</p>
         </div>
       </div>
 
@@ -116,7 +102,7 @@ export default function Login() {
               <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground">
                 <School className="h-5 w-5" />
               </div>
-              <span className="text-xl font-bold">EduManage</span>
+              <span className="text-xl font-bold">Vedanta Valley</span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
             <p className="text-muted-foreground mt-2">Enter your credentials to access your account</p>

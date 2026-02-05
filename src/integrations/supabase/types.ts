@@ -504,6 +504,7 @@ export type Database = {
           salary_status: Database["public"]["Enums"]["salary_status"] | null
           state: string | null
           subject: string | null
+          teacher_id: string | null
           updated_at: string
         }
         Insert: {
@@ -534,6 +535,7 @@ export type Database = {
           salary_status?: Database["public"]["Enums"]["salary_status"] | null
           state?: string | null
           subject?: string | null
+          teacher_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -564,6 +566,7 @@ export type Database = {
           salary_status?: Database["public"]["Enums"]["salary_status"] | null
           state?: string | null
           subject?: string | null
+          teacher_id?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -75,8 +75,8 @@ export function Sidebar() {
               <School className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="font-bold text-lg">EduManage</h1>
-              <p className="text-xs text-muted-foreground">School Management</p>
+              <h1 className="font-bold text-sm leading-tight">Vedanta Valley</h1>
+              <p className="text-xs text-muted-foreground">Public School</p>
             </div>
           </div>
 

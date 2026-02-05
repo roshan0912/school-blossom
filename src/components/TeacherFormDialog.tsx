@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Briefcase, MapPin, CreditCard } from "lucide-react";
+import { User, Briefcase, MapPin, CreditCard, Camera } from "lucide-react";
+import { PhotoUpload } from "@/components/PhotoUpload";
 import type { Database } from "@/integrations/supabase/types";
 
 type SalaryStatus = Database["public"]["Enums"]["salary_status"];
@@ -43,6 +44,8 @@ interface TeacherFormData {
   bank_name: string;
   bank_account: string;
   ifsc_code: string;
+  photo_url: string | null;
+  teacher_id: string;
 }
 
 interface TeacherFormDialogProps {
@@ -79,6 +82,8 @@ const defaultFormData: TeacherFormData = {
   bank_name: "",
   bank_account: "",
   ifsc_code: "",
+  photo_url: null,
+  teacher_id: "",
 };
 
 export function TeacherFormDialog({
@@ -90,7 +95,7 @@ export function TeacherFormDialog({
   isSubmitting = false,
 }: TeacherFormDialogProps) {
   const [formData, setFormData] = useState<TeacherFormData>(defaultFormData);
-  const [activeTab, setActiveTab] = useState("basic");
+  const [activeTab, setActiveTab] = useState("photo");
 
   useEffect(() => {
     if (open) {
@@ -99,7 +104,7 @@ export function TeacherFormDialog({
       } else {
         setFormData(defaultFormData);
       }
-      setActiveTab("basic");
+      setActiveTab("photo");
     }
   }, [open, initialData]);
 
@@ -108,7 +113,7 @@ export function TeacherFormDialog({
     await onSubmit(formData);
   };
 
-  const updateField = (field: keyof TeacherFormData, value: string) => {
+  const updateField = (field: keyof TeacherFormData, value: string | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -124,7 +129,11 @@ export function TeacherFormDialog({
 
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-5 mb-4">
+              <TabsTrigger value="photo" className="text-xs gap-1">
+                <Camera className="h-3 w-3" />
+                Photo
+              </TabsTrigger>
               <TabsTrigger value="basic" className="text-xs gap-1">
                 <User className="h-3 w-3" />
                 Personal
@@ -144,6 +153,34 @@ export function TeacherFormDialog({
             </TabsList>
 
             <ScrollArea className="h-[400px] pr-4">
+              {/* Photo Tab */}
+              <TabsContent value="photo" className="space-y-4 mt-0">
+                <div className="flex flex-col items-center justify-center py-8">
+                  <PhotoUpload
+                    currentPhotoUrl={formData.photo_url}
+                    onPhotoChange={(url) => updateField("photo_url", url)}
+                    folder="teachers"
+                    name={formData.name}
+                  />
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Upload a passport size photo (max 5MB)
+                  </p>
+                </div>
+
+                <div className="space-y-2 max-w-xs mx-auto">
+                  <Label htmlFor="teacher_id">Teacher ID</Label>
+                  <Input
+                    id="teacher_id"
+                    value={formData.teacher_id}
+                    onChange={(e) => updateField("teacher_id", e.target.value)}
+                    placeholder="e.g., TCH001"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Unique identifier for the teacher
+                  </p>
+                </div>
+              </TabsContent>
+
               {/* Personal Information */}
               <TabsContent value="basic" className="space-y-4 mt-0">
                 <div className="grid grid-cols-2 gap-4">

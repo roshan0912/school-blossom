@@ -92,6 +92,8 @@ export default function Teachers() {
       bank_name: formData.bank_name || null,
       bank_account: formData.bank_account || null,
       ifsc_code: formData.ifsc_code || null,
+      photo_url: formData.photo_url || null,
+      teacher_id: formData.teacher_id || null,
     };
 
     if (editingTeacher) {
@@ -323,6 +325,8 @@ export default function Teachers() {
           bank_name: editingTeacher.bank_name || "",
           bank_account: editingTeacher.bank_account || "",
           ifsc_code: editingTeacher.ifsc_code || "",
+          photo_url: editingTeacher.photo_url || null,
+          teacher_id: (editingTeacher as any).teacher_id || "",
         } : null}
         isEditing={!!editingTeacher}
         onSubmit={handleSubmit}

@@ -78,30 +78,20 @@ export default function Signup() {
               <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
                 <School className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">EduManage</span>
+              <span className="text-2xl font-bold">Vedanta Valley</span>
             </div>
           </div>
           
           <div className="space-y-6">
             <h1 className="text-4xl font-bold leading-tight">
-              Start your journey<br />to better school management
+              Vedanta Valley<br />Public School
             </h1>
             <p className="text-lg text-white/80 max-w-md">
-              Join thousands of schools already using EduManage to streamline their operations.
+              School management system for staff and administrators.
             </p>
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <p className="font-semibold">Free Trial</p>
-                <p className="text-sm text-white/70">14 days full access</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <p className="font-semibold">No Credit Card</p>
-                <p className="text-sm text-white/70">Required to start</p>
-              </div>
-            </div>
           </div>
           
-          <p className="text-sm text-white/60">© 2026 EduManage. All rights reserved.</p>
+          <p className="text-sm text-white/60">Made by Roshan Dev & Co</p>
         </div>
       </div>
 
@@ -113,7 +103,7 @@ export default function Signup() {
               <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground">
                 <School className="h-5 w-5" />
               </div>
-              <span className="text-xl font-bold">EduManage</span>
+              <span className="text-xl font-bold">Vedanta Valley</span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight">Create an account</h2>
             <p className="text-muted-foreground mt-2">Get started with your school management journey</p>

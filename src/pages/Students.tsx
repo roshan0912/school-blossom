@@ -143,6 +143,7 @@ export default function Students() {
       transport_required: formData.transport_required || false,
       pickup_point: formData.pickup_point || null,
       fee_status: formData.fee_status || "pending",
+      photo_url: formData.photo_url || null,
     };
 
     if (editingStudent) {
@@ -357,6 +358,7 @@ export default function Students() {
           transport_required: editingStudent.transport_required || false,
           pickup_point: editingStudent.pickup_point || "",
           fee_status: editingStudent.fee_status || "pending",
+          photo_url: editingStudent.photo_url || null,
         } : null}
         isEditing={!!editingStudent}
         onSubmit={handleSubmit}
