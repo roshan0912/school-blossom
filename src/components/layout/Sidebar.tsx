@@ -15,21 +15,66 @@ import {
   X,
   School,
   Shield,
+  CalendarDays,
+  ClipboardList,
+  Receipt,
+  LibraryBig,
+  Bus,
+  Package,
+  FolderOpen,
+  Megaphone,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Students", href: "/students", icon: Users },
-  { name: "Teachers", href: "/teachers", icon: GraduationCap },
-  { name: "Classes", href: "/classes", icon: BookOpen },
-  { name: "Attendance", href: "/attendance", icon: Calendar },
-  { name: "Payroll", href: "/payroll", icon: DollarSign },
-  { name: "Exams", href: "/exams", icon: FileText },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
+const navigationSections = [
+  {
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      { name: "Students", href: "/students", icon: Users },
+      { name: "Teachers", href: "/teachers", icon: GraduationCap },
+    ],
+  },
+  {
+    label: "Academic",
+    items: [
+      { name: "Classes", href: "/classes", icon: BookOpen },
+      { name: "Timetable", href: "/timetable", icon: CalendarDays },
+      { name: "Attendance", href: "/attendance", icon: Calendar },
+      { name: "Exams", href: "/exams", icon: FileText },
+      { name: "Homework", href: "/homework", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { name: "Fee Management", href: "/fees", icon: Receipt },
+      { name: "Payroll", href: "/payroll", icon: DollarSign },
+    ],
+  },
+  {
+    label: "Resources",
+    items: [
+      { name: "Library", href: "/library", icon: LibraryBig },
+      { name: "Transport", href: "/transport", icon: Bus },
+      { name: "Inventory", href: "/inventory", icon: Package },
+      { name: "Documents", href: "/documents", icon: FolderOpen },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { name: "Announcements", href: "/announcements", icon: Megaphone },
+      { name: "Reports", href: "/reports", icon: BarChart3 },
+      { name: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -37,9 +82,14 @@ export function Sidebar() {
   const location = useLocation();
   const { userRole, user, signOut } = useAuth();
 
-  const allNavigation = userRole === "admin" 
-    ? [...navigation, { name: "Admin", href: "/admin", icon: Shield }]
-    : navigation;
+  const adminSection = {
+    label: "Admin",
+    items: [{ name: "Admin Panel", href: "/admin", icon: Shield }],
+  };
+
+  const allSections = userRole === "admin"
+    ? [...navigationSections, adminSection]
+    : navigationSections;
 
   return (
     <>
@@ -81,24 +131,36 @@ export function Sidebar() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {allNavigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={cn(
-                    "sidebar-link",
-                    isActive && "sidebar-link-active"
-                  )}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  <span>{item.name}</span>
-                </NavLink>
-              );
-            })}
+          <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+            {allSections.map((section, sIdx) => (
+              <div key={sIdx} className={cn(sIdx > 0 && "mt-4")}>
+                {section.label && (
+                  <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    {section.label}
+                  </p>
+                )}
+                {section.items.map((item) => {
+                  const isActive =
+                    location.pathname === item.href ||
+                    (item.href !== "/dashboard" &&
+                      location.pathname.startsWith(item.href));
+                  return (
+                    <NavLink
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setIsMobileOpen(false)}
+                      className={cn(
+                        "sidebar-link",
+                        isActive && "sidebar-link-active"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="text-[13px]">{item.name}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* User section */}
@@ -113,9 +175,9 @@ export function Sidebar() {
                 <p className="text-sm font-medium truncate">{user?.email || "User"}</p>
                 <p className="text-xs text-muted-foreground truncate capitalize">{userRole || "No role"}</p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                 onClick={() => signOut()}
               >

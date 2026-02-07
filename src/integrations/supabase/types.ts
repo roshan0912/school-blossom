@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      announcements: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          priority: string
+          published_at: string | null
+          target_classes: string[] | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          priority?: string
+          published_at?: string | null
+          target_classes?: string[] | null
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          priority?: string
+          published_at?: string | null
+          target_classes?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           created_at: string
@@ -51,6 +123,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          document_type: string | null
+          entity_id: string | null
+          entity_type: string
+          file_url: string
+          id: string
+          name: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string | null
+          entity_id?: string | null
+          entity_type: string
+          file_url: string
+          id?: string
+          name: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          file_url?: string
+          id?: string
+          name?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
       }
       exam_results: {
         Row: {
@@ -132,6 +237,378 @@ export type Database = {
           },
         ]
       }
+      fee_installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          fee_structure_id: string
+          id: string
+          paid_date: string | null
+          receipt_number: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          fee_structure_id: string
+          id?: string
+          paid_date?: string | null
+          receipt_number?: string | null
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          fee_structure_id?: string
+          id?: string
+          paid_date?: string | null
+          receipt_number?: string | null
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_installments_fee_structure_id_fkey"
+            columns: ["fee_structure_id"]
+            isOneToOne: false
+            referencedRelation: "fee_structures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_installments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_structures: {
+        Row: {
+          academic_year: string | null
+          amount: number
+          class_id: string | null
+          created_at: string
+          due_date: string | null
+          fee_type: string
+          id: string
+          late_fine_per_day: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year?: string | null
+          amount?: number
+          class_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          fee_type?: string
+          id?: string
+          late_fine_per_day?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year?: string | null
+          amount?: number
+          class_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          fee_type?: string
+          id?: string
+          late_fine_per_day?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_structures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          file_url: string | null
+          id: string
+          status: string
+          subject: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          file_url?: string | null
+          id?: string
+          status?: string
+          subject: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          file_url?: string | null
+          id?: string
+          status?: string
+          subject?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_submissions: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          grade: string | null
+          homework_id: string
+          id: string
+          remarks: string | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          grade?: string | null
+          homework_id: string
+          id?: string
+          remarks?: string | null
+          status?: string
+          student_id: string
+          submitted_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          grade?: string | null
+          homework_id?: string
+          id?: string
+          remarks?: string | null
+          status?: string
+          student_id?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_submissions_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          category_id: string | null
+          condition: string | null
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          purchase_value: number | null
+          quantity: number
+          supplier: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          condition?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_value?: number | null
+          quantity?: number
+          supplier?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          condition?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_value?: number | null
+          quantity?: number
+          supplier?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      library_books: {
+        Row: {
+          author: string | null
+          available_copies: number
+          category: string | null
+          created_at: string
+          id: string
+          isbn: string | null
+          location: string | null
+          publisher: string | null
+          title: string
+          total_copies: number
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          available_copies?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          location?: string | null
+          publisher?: string | null
+          title: string
+          total_copies?: number
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          available_copies?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          location?: string | null
+          publisher?: string | null
+          title?: string
+          total_copies?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      library_issues: {
+        Row: {
+          book_id: string
+          created_at: string
+          due_date: string
+          fine: number | null
+          id: string
+          issue_date: string
+          return_date: string | null
+          status: string
+          student_id: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          due_date: string
+          fine?: number | null
+          id?: string
+          issue_date?: string
+          return_date?: string | null
+          status?: string
+          student_id: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          due_date?: string
+          fine?: number | null
+          id?: string
+          issue_date?: string
+          return_date?: string | null
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "library_issues_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "library_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "library_issues_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -208,6 +685,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      periods: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          is_break: boolean
+          name: string
+          order_index: number
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          is_break?: boolean
+          name: string
+          order_index?: number
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_break?: boolean
+          name?: string
+          order_index?: number
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -443,6 +953,33 @@ export type Database = {
           },
         ]
       }
+      subjects: {
+        Row: {
+          code: string | null
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       teacher_attendance: {
         Row: {
           created_at: string
@@ -568,6 +1105,173 @@ export type Database = {
           subject?: string | null
           teacher_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      timetable_entries: {
+        Row: {
+          class_id: string
+          created_at: string
+          day_of_week: number
+          id: string
+          period_id: string
+          subject_id: string | null
+          teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          day_of_week: number
+          id?: string
+          period_id: string
+          subject_id?: string | null
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          period_id?: string
+          subject_id?: string | null
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetable_entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_entries_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timetable_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          template_data: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          template_data?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          template_data?: Json
+        }
+        Relationships: []
+      }
+      transport_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          pickup_point: string | null
+          route_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pickup_point?: string | null
+          route_id: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pickup_point?: string | null
+          route_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_assignments_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "transport_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transport_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transport_routes: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          driver_name: string | null
+          driver_phone: string | null
+          id: string
+          route_name: string
+          route_number: string | null
+          schedule: string | null
+          stops: Json | null
+          updated_at: string
+          vehicle_number: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          route_name: string
+          route_number?: string | null
+          schedule?: string | null
+          stops?: Json | null
+          updated_at?: string
+          vehicle_number?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          route_name?: string
+          route_number?: string | null
+          schedule?: string | null
+          stops?: Json | null
+          updated_at?: string
+          vehicle_number?: string | null
         }
         Relationships: []
       }
