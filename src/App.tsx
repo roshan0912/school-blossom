@@ -12,10 +12,18 @@ import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
 import Teachers from "./pages/Teachers";
 import Classes from "./pages/Classes";
+import Timetable from "./pages/Timetable";
 import Attendance from "./pages/Attendance";
 import Payroll from "./pages/Payroll";
 import Exams from "./pages/Exams";
 import ExamResults from "./pages/ExamResults";
+import Homework from "./pages/Homework";
+import FeeManagement from "./pages/FeeManagement";
+import Library from "./pages/Library";
+import TransportPage from "./pages/TransportPage";
+import InventoryPage from "./pages/InventoryPage";
+import DocumentsPage from "./pages/DocumentsPage";
+import Announcements from "./pages/Announcements";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
@@ -45,10 +53,18 @@ const App = () => (
               <Route path="/students" element={<Students />} />
               <Route path="/teachers" element={<Teachers />} />
               <Route path="/classes" element={<Classes />} />
+              <Route path="/timetable" element={<Timetable />} />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/payroll" element={<Payroll />} />
               <Route path="/exams" element={<Exams />} />
               <Route path="/exams/:examId/results" element={<ExamResults />} />
+              <Route path="/homework" element={<Homework />} />
+              <Route path="/fees" element={<FeeManagement />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/transport" element={<TransportPage />} />
+              <Route path="/inventory" element={<InventoryPage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/announcements" element={<Announcements />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<AdminPanel />} />
