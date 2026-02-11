@@ -112,37 +112,41 @@ export function generatePayslipPDF(data: PayslipData): void {
     styles: { fontSize: 10 },
   });
 
-  // Deductions Table
+  // Deductions Table (only if there are deductions)
   const earningsEndY = (doc as any).lastAutoTable.finalY;
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Deductions", 20, earningsEndY + 15);
+  let deductionsEndY = earningsEndY;
+  if (data.deductions.length > 0) {
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Deductions", 20, earningsEndY + 15);
 
-  const deductionRows = data.deductions.map(d => [d.label, formatINR(d.amount)]);
-  deductionRows.push(["Total Deductions", formatINR(data.totalDeductions)]);
+    const deductionRows = data.deductions.map(d => [d.label, formatINR(d.amount)]);
+    deductionRows.push(["Total Deductions", formatINR(data.totalDeductions)]);
 
-  autoTable(doc, {
-    startY: earningsEndY + 20,
-    head: [["Description", "Amount (INR)"]],
-    body: deductionRows,
-    theme: "striped",
-    headStyles: { fillColor: [239, 68, 68] },
-    margin: { left: 20, right: 100 },
-    styles: { fontSize: 10 },
-  });
+    autoTable(doc, {
+      startY: earningsEndY + 20,
+      head: [["Description", "Amount (INR)"]],
+      body: deductionRows,
+      theme: "striped",
+      headStyles: { fillColor: [239, 68, 68] },
+      margin: { left: 20, right: 100 },
+      styles: { fontSize: 10 },
+    });
+    deductionsEndY = (doc as any).lastAutoTable.finalY;
+  }
 
   // Net Salary
-  const deductionsEndY = (doc as any).lastAutoTable.finalY + 10;
+  const netY = deductionsEndY + 10;
   doc.setFillColor(34, 197, 94);
-  doc.rect(20, deductionsEndY, 170, 14, "F");
+  doc.rect(20, netY, 170, 14, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("Net Salary", 25, deductionsEndY + 10);
-  doc.text(formatINR(data.netSalary), 155, deductionsEndY + 10);
+  doc.text("Net Salary", 25, netY + 10);
+  doc.text(formatINR(data.netSalary), 155, netY + 10);
   
   // Footer
-  const finalY = deductionsEndY + 40;
+  const finalY = netY + 40;
   doc.setFontSize(10);
   doc.setTextColor(128, 128, 128);
   doc.setFont("helvetica", "normal");
