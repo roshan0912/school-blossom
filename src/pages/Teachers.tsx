@@ -147,8 +147,14 @@ export default function Teachers() {
 
   const handleGeneratePayslip = (teacher: Teacher) => {
     const baseSalary = teacher.salary || 0;
-    const deductions = baseSalary * 0.1;
-    const netSalary = baseSalary - deductions;
+    const hra = baseSalary * 0.2;
+    const da = baseSalary * 0.1;
+    const totalEarnings = baseSalary + hra + da;
+    const pf = baseSalary * 0.12;
+    const profTax = 200;
+    const tds = baseSalary > 50000 ? baseSalary * 0.1 : 0;
+    const totalDeductions = pf + profTax + tds;
+    const netSalary = totalEarnings - totalDeductions;
 
     generatePayslipPDF({
       employeeName: teacher.name,
@@ -157,7 +163,18 @@ export default function Teachers() {
       month: new Date().toLocaleString("en-IN", { month: "long" }),
       year: new Date().getFullYear(),
       baseSalary,
-      deductions,
+      earnings: [
+        { label: "Basic Salary", amount: baseSalary },
+        { label: "House Rent Allowance (HRA)", amount: hra },
+        { label: "Dearness Allowance (DA)", amount: da },
+      ],
+      deductions: [
+        { label: "Provident Fund (PF) - 12%", amount: pf },
+        { label: "Professional Tax", amount: profTax },
+        ...(tds > 0 ? [{ label: "TDS - 10%", amount: tds }] : []),
+      ],
+      totalEarnings,
+      totalDeductions,
       netSalary,
       paymentDate: new Date().toLocaleDateString("en-IN"),
     });

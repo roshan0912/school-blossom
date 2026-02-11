@@ -30,8 +30,14 @@ export default function Payroll() {
 
   const handleGeneratePayslip = (teacher: PayrollItem) => {
     const baseSalary = teacher.salary || 0;
-    const deductions = baseSalary * 0.1; // 10% deductions
-    const netSalary = baseSalary - deductions;
+    const hra = baseSalary * 0.2;
+    const da = baseSalary * 0.1;
+    const totalEarnings = baseSalary + hra + da;
+    const pf = baseSalary * 0.12;
+    const profTax = 200;
+    const tds = baseSalary > 50000 ? baseSalary * 0.1 : 0;
+    const totalDeductions = pf + profTax + tds;
+    const netSalary = totalEarnings - totalDeductions;
 
     generatePayslipPDF({
       employeeName: teacher.name,
@@ -40,7 +46,18 @@ export default function Payroll() {
       month: new Date().toLocaleString("en-IN", { month: "long" }),
       year: new Date().getFullYear(),
       baseSalary,
-      deductions,
+      earnings: [
+        { label: "Basic Salary", amount: baseSalary },
+        { label: "House Rent Allowance (HRA)", amount: hra },
+        { label: "Dearness Allowance (DA)", amount: da },
+      ],
+      deductions: [
+        { label: "Provident Fund (PF) - 12%", amount: pf },
+        { label: "Professional Tax", amount: profTax },
+        ...(tds > 0 ? [{ label: "TDS - 10%", amount: tds }] : []),
+      ],
+      totalEarnings,
+      totalDeductions,
       netSalary,
       paymentDate: new Date().toLocaleDateString("en-IN"),
     });
@@ -72,16 +89,30 @@ export default function Payroll() {
     { 
       key: "deductions", 
       label: "Deductions",
-      render: (item: PayrollItem) => formatINR((item.salary || 0) * 0.1),
+      render: (item: PayrollItem) => {
+        const base = item.salary || 0;
+        const pf = base * 0.12;
+        const profTax = 200;
+        const tds = base > 50000 ? base * 0.1 : 0;
+        return formatINR(pf + profTax + tds);
+      },
     },
     {
       key: "netSalary",
       label: "Net Salary",
-      render: (item: PayrollItem) => (
-        <span className="font-semibold text-success">
-          {formatINR((item.salary || 0) * 0.9)}
-        </span>
-      ),
+      render: (item: PayrollItem) => {
+        const base = item.salary || 0;
+        const totalEarnings = base + base * 0.2 + base * 0.1;
+        const pf = base * 0.12;
+        const profTax = 200;
+        const tds = base > 50000 ? base * 0.1 : 0;
+        const net = totalEarnings - pf - profTax - tds;
+        return (
+          <span className="font-semibold text-success">
+            {formatINR(net)}
+          </span>
+        );
+      },
     },
     {
       key: "salary_status",
@@ -126,8 +157,17 @@ export default function Payroll() {
     },
   ];
 
-  const totalPaid = teachers?.filter(t => t.salary_status === "paid").reduce((sum, t) => sum + ((t.salary || 0) * 0.9), 0) || 0;
-  const totalPending = teachers?.filter(t => t.salary_status !== "paid").reduce((sum, t) => sum + ((t.salary || 0) * 0.9), 0) || 0;
+  const calcNet = (salary: number) => {
+    const base = salary || 0;
+    const totalEarnings = base + base * 0.2 + base * 0.1;
+    const pf = base * 0.12;
+    const profTax = 200;
+    const tds = base > 50000 ? base * 0.1 : 0;
+    return totalEarnings - pf - profTax - tds;
+  };
+
+  const totalPaid = teachers?.filter(t => t.salary_status === "paid").reduce((sum, t) => sum + calcNet(t.salary || 0), 0) || 0;
+  const totalPending = teachers?.filter(t => t.salary_status !== "paid").reduce((sum, t) => sum + calcNet(t.salary || 0), 0) || 0;
 
   return (
     <div className="space-y-6">
