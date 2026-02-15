@@ -23,6 +23,7 @@ import {
   Package,
   FolderOpen,
   Megaphone,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,7 @@ export function Sidebar() {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 lg:hidden"
+        className="fixed top-4 left-4 z-50 lg:hidden bg-card/80 backdrop-blur-md shadow-lg"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
         {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -114,28 +115,29 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-card border-r border-border z-40 transform transition-transform duration-300 lg:translate-x-0",
+          "fixed left-0 top-0 h-full w-[260px] bg-sidebar-background border-r border-sidebar-border z-40 transform transition-transform duration-300 lg:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-6 py-6 border-b border-border">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground">
-              <School className="h-5 w-5" />
+          <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl text-primary-foreground overflow-hidden" style={{ background: 'var(--gradient-primary)' }}>
+              <School className="h-5 w-5 relative z-10" />
+              <div className="absolute inset-0 bg-white/10 animate-pulse-soft" />
             </div>
             <div>
-              <h1 className="font-bold text-sm leading-tight">Vedanta Valley</h1>
-              <p className="text-xs text-muted-foreground">Public School</p>
+              <h1 className="font-bold text-sm tracking-tight leading-tight">Vedanta Valley</h1>
+              <p className="text-[11px] text-muted-foreground font-medium">Public School ERP</p>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-thin">
             {allSections.map((section, sIdx) => (
-              <div key={sIdx} className={cn(sIdx > 0 && "mt-4")}>
+              <div key={sIdx} className={cn(sIdx > 0 && "mt-5")}>
                 {section.label && (
-                  <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">
                     {section.label}
                   </p>
                 )}
@@ -150,12 +152,15 @@ export function Sidebar() {
                       to={item.href}
                       onClick={() => setIsMobileOpen(false)}
                       className={cn(
-                        "sidebar-link",
+                        "sidebar-link group",
                         isActive && "sidebar-link-active"
                       )}
                     >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="text-[13px]">{item.name}</span>
+                      <item.icon className={cn(
+                        "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+                        isActive ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
+                      )} />
+                      <span className="text-[13px] font-medium">{item.name}</span>
                     </NavLink>
                   );
                 })}
@@ -164,21 +169,19 @@ export function Sidebar() {
           </nav>
 
           {/* User section */}
-          <div className="p-4 border-t border-border">
-            <div className="flex items-center gap-3 px-3 py-2">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-medium text-primary">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
-                </span>
+          <div className="p-3 border-t border-sidebar-border">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-accent/50">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-primary-foreground text-sm font-bold" style={{ background: 'var(--gradient-primary)' }}>
+                {user?.email?.charAt(0).toUpperCase() || "U"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.email || "User"}</p>
-                <p className="text-xs text-muted-foreground truncate capitalize">{userRole || "No role"}</p>
+                <p className="text-sm font-semibold truncate">{user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}</p>
+                <p className="text-[11px] text-muted-foreground truncate capitalize font-medium">{userRole || "No role"}</p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 onClick={() => signOut()}
               >
                 <LogOut className="h-4 w-4" />

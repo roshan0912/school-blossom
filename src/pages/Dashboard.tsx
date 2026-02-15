@@ -2,31 +2,44 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
-import { Users, GraduationCap, Calendar, IndianRupee, BookOpen, TrendingUp, AlertCircle } from "lucide-react";
+import { Users, GraduationCap, Calendar, IndianRupee, BookOpen, TrendingUp, AlertCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { formatINR } from "@/lib/pdfGenerator";
 import { QuickActionDropdown } from "@/components/QuickActionDropdown";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading } = useDashboardStats();
+  const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back, {userName}! 👋</h1>
-          <p className="text-muted-foreground mt-1">Here's what's happening at your school today.</p>
+        <div className="opacity-0 animate-fade-in">
+          <p className="text-muted-foreground font-medium">{getGreeting()}</p>
+          <h1 className="text-3xl font-bold tracking-tight mt-1">{userName} 👋</h1>
+          <p className="text-muted-foreground mt-1 text-[15px]">Here's what's happening at your school today.</p>
         </div>
-        <QuickActionDropdown />
+        <div className="opacity-0 animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <QuickActionDropdown />
+        </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Students"
           value={isLoading ? "..." : stats?.totalStudents || 0}
@@ -43,7 +56,7 @@ export default function Dashboard() {
           changeType={stats?.totalTeachers ? "positive" : "neutral"}
           icon={GraduationCap}
           gradient="success"
-          delay={100}
+          delay={80}
         />
         <StatCard
           title="Attendance Rate"
@@ -52,7 +65,7 @@ export default function Dashboard() {
           changeType={stats?.studentAttendanceRate && stats.studentAttendanceRate >= 80 ? "positive" : stats?.studentAttendanceRate ? "negative" : "neutral"}
           icon={Calendar}
           gradient="warning"
-          delay={200}
+          delay={160}
         />
         <StatCard
           title="Fees Collected"
@@ -61,22 +74,29 @@ export default function Dashboard() {
           changeType={stats?.feesCollected ? "positive" : "neutral"}
           icon={IndianRupee}
           gradient="info"
-          delay={300}
+          delay={240}
         />
       </div>
 
       {/* Empty State Banner */}
       {!isLoading && stats?.totalStudents === 0 && stats?.totalTeachers === 0 && (
-        <div className="bg-info/10 border border-info/20 rounded-2xl p-6 flex items-start gap-4">
-          <div className="p-2 rounded-lg bg-info/20 text-info">
-            <AlertCircle className="h-5 w-5" />
+        <div className="premium-card bg-accent/50 border-primary/20 flex items-start gap-4 opacity-0 animate-fade-in" style={{ animationDelay: '300ms' }}>
+          <div className="p-2.5 rounded-xl" style={{ background: 'var(--gradient-primary)' }}>
+            <AlertCircle className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div>
-            <h3 className="font-semibold text-info">Get Started</h3>
+          <div className="flex-1">
+            <h3 className="font-bold text-foreground">Get Started with Vedanta Valley ERP</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Start by adding students and teachers to see your dashboard come to life. 
-              Go to the <strong>Students</strong> or <strong>Teachers</strong> page to add your first records.
             </p>
+            <div className="flex gap-3 mt-4">
+              <Button size="sm" className="btn-gradient rounded-xl gap-2" onClick={() => navigate('/students')}>
+                Add Students <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" className="rounded-xl gap-2" onClick={() => navigate('/teachers')}>
+                Add Teachers <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -91,36 +111,36 @@ export default function Dashboard() {
 
       {/* Quick Stats and Events */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 grid gap-4 sm:grid-cols-2">
-          <div className="bg-card rounded-2xl border border-border p-6 opacity-0 animate-fade-in" style={{ animationDelay: "600ms" }}>
+        <div className="lg:col-span-2 grid gap-5 sm:grid-cols-2">
+          <div className="premium-card opacity-0 animate-fade-in group" style={{ animationDelay: "400ms" }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Classes</p>
-                <p className="text-3xl font-bold mt-2">{isLoading ? "..." : stats?.totalClasses || 0}</p>
+                <p className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">Active Classes</p>
+                <p className="text-3xl font-bold mt-3">{isLoading ? "..." : stats?.totalClasses || 0}</p>
               </div>
-              <div className="p-3 rounded-xl bg-primary/10 text-primary">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110 duration-300">
                 <BookOpen className="h-6 w-6" />
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2 text-sm text-success">
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 text-sm text-success font-medium">
                 <TrendingUp className="h-4 w-4" />
                 {stats?.totalClasses ? "Classes configured" : "Add classes to get started"}
               </div>
             </div>
           </div>
-          <div className="bg-card rounded-2xl border border-border p-6 opacity-0 animate-fade-in" style={{ animationDelay: "700ms" }}>
+          <div className="premium-card opacity-0 animate-fade-in group" style={{ animationDelay: "480ms" }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Salaries</p>
-                <p className="text-3xl font-bold mt-2">{isLoading ? "..." : formatINR(stats?.pendingSalaries || 0)}</p>
+                <p className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">Pending Salaries</p>
+                <p className="text-3xl font-bold mt-3">{isLoading ? "..." : formatINR(stats?.pendingSalaries || 0)}</p>
               </div>
-              <div className="p-3 rounded-xl bg-warning/10 text-warning">
+              <div className="p-3 rounded-xl bg-warning/10 text-warning transition-transform group-hover:scale-110 duration-300">
                 <IndianRupee className="h-6 w-6" />
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-border">
-              <p className="text-sm text-muted-foreground">
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-sm text-muted-foreground font-medium">
                 {stats?.pendingSalaries ? "Teachers pending payment" : "No pending payments"}
               </p>
             </div>
