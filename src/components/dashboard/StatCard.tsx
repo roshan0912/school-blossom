@@ -11,11 +11,11 @@ interface StatCardProps {
   delay?: number;
 }
 
-const gradientClasses = {
-  primary: "from-primary to-primary/80",
-  success: "from-success to-success/80",
-  warning: "from-warning to-warning/80",
-  info: "from-info to-info/80",
+const gradientStyles = {
+  primary: "var(--gradient-primary)",
+  success: "var(--gradient-success)",
+  warning: "var(--gradient-warning)",
+  info: "var(--gradient-info)",
 };
 
 const iconBgClasses = {
@@ -36,16 +36,17 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className="stat-card bg-card border border-border opacity-0 animate-fade-in"
+      className="stat-card bg-card border border-border/50 opacity-0 animate-fade-in group"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className={cn("stat-card-gradient bg-gradient-to-br", gradientClasses[gradient])} />
+      {/* Gradient accent line at top */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl opacity-80 group-hover:opacity-100 transition-opacity" style={{ background: gradientStyles[gradient] }} />
       
       <div className="relative">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight">{value}</p>
+            <p className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
+            <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
             {change && (
               <p
                 className={cn(
@@ -59,7 +60,7 @@ export function StatCard({
               </p>
             )}
           </div>
-          <div className={cn("p-3 rounded-xl", iconBgClasses[gradient])}>
+          <div className={cn("p-3 rounded-xl transition-transform group-hover:scale-110 duration-300", iconBgClasses[gradient])}>
             <Icon className="h-6 w-6" />
           </div>
         </div>

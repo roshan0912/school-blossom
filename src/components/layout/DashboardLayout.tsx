@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { GlobalSearch } from "@/components/GlobalSearch";
+
 export function DashboardLayout() {
   const [isDark, setIsDark] = useState(false);
   const { user, signOut, userRole } = useAuth();
@@ -33,27 +34,28 @@ export function DashboardLayout() {
   };
 
   const getInitials = () => {
-    const email = user?.email || "";
-    return email.charAt(0).toUpperCase();
+    const name = user?.user_metadata?.full_name;
+    if (name) return name.split(" ").map((n: string) => n[0]).join("").toUpperCase();
+    return user?.email?.charAt(0).toUpperCase() || "U";
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background bg-mesh">
       <Sidebar />
       
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-[260px]">
         {/* Top header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-card/80 backdrop-blur-xl px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/50 bg-background/70 backdrop-blur-xl px-6">
           <div className="flex-1 flex items-center gap-4 ml-12 lg:ml-0">
             <GlobalSearch />
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 rounded-xl"
               onClick={() => setIsDark(!isDark)}
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -63,24 +65,24 @@ export function DashboardLayout() {
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-9 px-2 gap-2">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
+                <Button variant="ghost" className="h-9 px-2 gap-2 rounded-xl">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs" style={{ background: 'var(--gradient-primary)' }}>
                     {getInitials()}
                   </div>
-                  <span className="hidden sm:inline text-sm font-medium">
-                    {user?.email?.split("@")[0]}
+                  <span className="hidden sm:inline text-sm font-semibold">
+                    {user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0]}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user?.email}</p>
+              <DropdownMenuContent align="end" className="w-52 rounded-xl">
+                <div className="px-3 py-2">
+                  <p className="text-sm font-semibold">{user?.user_metadata?.full_name || user?.email}</p>
                   {userRole && (
-                    <p className="text-xs text-muted-foreground capitalize">{userRole}</p>
+                    <p className="text-xs text-muted-foreground capitalize font-medium">{userRole}</p>
                   )}
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive gap-2">
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive gap-2 rounded-lg mx-1">
                   <LogOut className="h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
@@ -90,7 +92,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page content */}
-        <main className="p-6 lg:p-8">
+        <main className="p-6 lg:p-8 max-w-[1400px]">
           <Outlet />
         </main>
       </div>
