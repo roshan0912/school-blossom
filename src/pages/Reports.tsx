@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Download, FileText, Users, IndianRupee, Calendar, BarChart3, TrendingUp, PieChart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, LineChart, Line } from "recharts";
-import { useDashboardStats, useFeeStats } from "@/hooks/useDashboardStats";
+import { useDashboardStats, useFeeStats, useWeeklyAttendance } from "@/hooks/useDashboardStats";
 import { useStudents } from "@/hooks/useStudents";
 import { useTeachers } from "@/hooks/useTeachers";
 import { exportToExcel, type ExcelColumn } from "@/lib/excel";
@@ -65,7 +65,7 @@ export default function Reports() {
             name: t.name,
             salary: t.salary || 0,
             status: t.salary_status || "pending",
-            net_salary: ((t.salary || 0) * 0.9),
+            net_salary: t.salary || 0,
           }));
           exportToExcel(financialData as Record<string, unknown>[], [
             { key: "name", header: "Employee" },
@@ -111,13 +111,14 @@ export default function Reports() {
     }));
   })();
 
-  // Generate attendance trend (placeholder - would need historical data)
-  const attendanceData = [
-    { month: "Week 1", rate: stats?.studentAttendanceRate || 0 },
-    { month: "Week 2", rate: stats?.studentAttendanceRate ? stats.studentAttendanceRate * 0.95 : 0 },
-    { month: "Week 3", rate: stats?.studentAttendanceRate ? stats.studentAttendanceRate * 1.02 : 0 },
-    { month: "Week 4", rate: stats?.studentAttendanceRate || 0 },
-  ].map(d => ({ ...d, rate: Math.round(d.rate) }));
+  const { data: weeklyAttendance, isLoading: weeklyLoading } = useWeeklyAttendance();
+
+  // Use real weekly attendance data from DB
+  const attendanceData = (weeklyAttendance || []).map(d => ({
+    month: d.name,
+    students: d.students,
+    teachers: d.teachers,
+  }));
 
   const hasData = stats && (stats.totalStudents > 0 || stats.totalTeachers > 0);
 
@@ -183,11 +184,11 @@ export default function Reports() {
             </CardHeader>
             <CardContent>
               <div className="h-[250px]">
-                {statsLoading ? (
+                {weeklyLoading ? (
                   <div className="h-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : (
+                ) : attendanceData.some(d => d.students > 0 || d.teachers > 0) ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={attendanceData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -200,9 +201,14 @@ export default function Reports() {
                           borderRadius: "8px",
                         }}
                       />
-                      <Bar dataKey="rate" fill="hsl(221 83% 53%)" radius={[4, 4, 0, 0]} name="Attendance %" />
+                      <Bar dataKey="students" fill="hsl(239 84% 67%)" radius={[4, 4, 0, 0]} name="Students %" />
+                      <Bar dataKey="teachers" fill="hsl(152 69% 31%)" radius={[4, 4, 0, 0]} name="Teachers %" />
                     </BarChart>
                   </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    No attendance recorded this week
+                  </div>
                 )}
               </div>
             </CardContent>
