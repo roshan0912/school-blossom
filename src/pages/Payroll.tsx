@@ -18,6 +18,7 @@ type PayrollItem = {
   email: string | null;
   salary: number | null;
   salary_status: "paid" | "pending" | null;
+  teacher_id: string | null;
 };
 
 const statusColors = {
@@ -33,7 +34,7 @@ export default function Payroll() {
 
     generatePayslipPDF({
       employeeName: teacher.name,
-      employeeId: teacher.id.slice(0, 8).toUpperCase(),
+      employeeId: teacher.teacher_id || teacher.id.slice(0, 8).toUpperCase(),
       role: "Teacher",
       month: new Date().toLocaleString("en-IN", { month: "long" }),
       year: new Date().getFullYear(),
