@@ -39,14 +39,31 @@ const importColumns: ExcelColumn[] = [
 ];
 
 const exportColumns: ExcelColumn[] = [
+  { key: "teacher_id", header: "Teacher ID" },
   { key: "name", header: "Name" },
   { key: "email", header: "Email" },
   { key: "phone", header: "Phone" },
+  { key: "gender", header: "Gender" },
+  { key: "date_of_birth", header: "Date of Birth" },
+  { key: "blood_group", header: "Blood Group" },
+  { key: "nationality", header: "Nationality" },
+  { key: "aadhar_number", header: "Aadhar Number" },
+  { key: "qualification", header: "Qualification" },
+  { key: "experience_years", header: "Experience (Years)" },
+  { key: "joining_date", header: "Joining Date" },
   { key: "subject", header: "Subject" },
   { key: "classes", header: "Classes" },
-  { key: "qualification", header: "Qualification" },
+  { key: "permanent_address", header: "Address" },
+  { key: "city", header: "City" },
+  { key: "state", header: "State" },
+  { key: "pin_code", header: "Pin Code" },
+  { key: "emergency_contact", header: "Emergency Contact" },
+  { key: "emergency_phone", header: "Emergency Phone" },
   { key: "salary", header: "Monthly Salary" },
-  { key: "salary_status", header: "Status" },
+  { key: "salary_status", header: "Salary Status" },
+  { key: "bank_name", header: "Bank Name" },
+  { key: "bank_account", header: "Bank Account" },
+  { key: "ifsc_code", header: "IFSC Code" },
 ];
 
 export default function Teachers() {
@@ -150,7 +167,7 @@ export default function Teachers() {
 
     generatePayslipPDF({
       employeeName: teacher.name,
-      employeeId: teacher.id.slice(0, 8).toUpperCase(),
+      employeeId: teacher.teacher_id || teacher.id.slice(0, 8).toUpperCase(),
       role: "Teacher",
       month: new Date().toLocaleString("en-IN", { month: "long" }),
       year: new Date().getFullYear(),
