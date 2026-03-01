@@ -18,6 +18,22 @@ const WHITE: [number, number, number] = [255, 255, 255];
 const BLACK: [number, number, number] = [0, 0, 0];
 const GRAY: [number, number, number] = [128, 128, 128];
 
+// Helper to load image from URL as base64
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { mode: "cors" });
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ============== STUDENT ID CARD ==============
 interface StudentIdCardData {
   name: string;
@@ -31,7 +47,7 @@ interface StudentIdCardData {
   photoUrl?: string | null;
 }
 
-export function generateStudentIdCardPDF(data: StudentIdCardData): void {
+export async function generateStudentIdCardPDF(data: StudentIdCardData): Promise<void> {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [86, 54] });
 
   // Green header
@@ -104,11 +120,18 @@ export function generateStudentIdCardPDF(data: StudentIdCardData): void {
   const addrLines = doc.splitTextToSize(data.address || "—", 50);
   doc.text(addrLines, labelX + 12, startY + 6 * lineH);
 
-  // Photo placeholder
+  // Photo area
   doc.setDrawColor(...GRAY);
   doc.setLineWidth(0.3);
   doc.rect(66, 18, 16, 18, "S");
-  if (!data.photoUrl) {
+  if (data.photoUrl) {
+    try {
+      const imgData = await loadImageAsBase64(data.photoUrl);
+      if (imgData) {
+        doc.addImage(imgData, "JPEG", 66.3, 18.3, 15.4, 17.4);
+      }
+    } catch { /* fallback to empty */ }
+  } else {
     doc.setFontSize(3);
     doc.setTextColor(...GRAY);
     doc.text("Photo", 74, 28, { align: "center" });
@@ -138,7 +161,7 @@ interface TeacherIdCardData {
   photoUrl?: string | null;
 }
 
-export function generateTeacherIdCardPDF(data: TeacherIdCardData): void {
+export async function generateTeacherIdCardPDF(data: TeacherIdCardData): Promise<void> {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [86, 54] });
 
   // Green header
@@ -206,11 +229,18 @@ export function generateTeacherIdCardPDF(data: TeacherIdCardData): void {
   const addrLines = doc.splitTextToSize(data.address || "—", 50);
   doc.text(addrLines, labelX + 12, startY + 5 * lineH);
 
-  // Photo placeholder
+  // Photo area
   doc.setDrawColor(...GRAY);
   doc.setLineWidth(0.3);
   doc.rect(66, 18, 16, 18, "S");
-  if (!data.photoUrl) {
+  if (data.photoUrl) {
+    try {
+      const imgData = await loadImageAsBase64(data.photoUrl);
+      if (imgData) {
+        doc.addImage(imgData, "JPEG", 66.3, 18.3, 15.4, 17.4);
+      }
+    } catch { /* fallback to empty */ }
+  } else {
     doc.setFontSize(3);
     doc.setTextColor(...GRAY);
     doc.text("Photo", 74, 28, { align: "center" });

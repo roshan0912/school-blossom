@@ -240,8 +240,9 @@ export default function Teachers() {
             <DropdownMenuItem className="gap-2" onClick={() => handleGeneratePayslip(item)}>
               <FileText className="h-4 w-4" /> Generate Payslip
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2" onClick={() => {
-              generateTeacherIdCardPDF({
+            <DropdownMenuItem className="gap-2" onClick={async () => {
+              toast.info("Generating ID Card...");
+              await generateTeacherIdCardPDF({
                 name: item.name,
                 designation: item.subject ? `${item.subject} Teacher` : "Teacher",
                 teacherId: item.teacher_id || "—",
