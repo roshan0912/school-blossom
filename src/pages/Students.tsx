@@ -280,8 +280,9 @@ export default function Students() {
               <Mail className="h-4 w-4" /> Send Email
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2" onClick={() => {
-              generateStudentIdCardPDF({
+            <DropdownMenuItem className="gap-2" onClick={async () => {
+              toast.info("Generating ID Card...");
+              await generateStudentIdCardPDF({
                 name: item.name,
                 idCardNo: item.admission_no || item.roll_no || "—",
                 fatherMotherName: item.parent_name || item.mother_name || "—",
