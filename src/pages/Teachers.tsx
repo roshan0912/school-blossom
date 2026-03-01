@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Eye, FileText, Loader2, MessageSquare, Mail, Users } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, FileText, Loader2, MessageSquare, Mail, Users, CreditCard } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import { TeacherDetailsDialog } from "@/components/ViewDetailsDialogs";
 import { TeacherFormDialog } from "@/components/TeacherFormDialog";
 import { SendMessageDialog } from "@/components/SendMessageDialog";
 import type { Database } from "@/integrations/supabase/types";
+import { generateTeacherIdCardPDF } from "@/lib/pdfDocuments";
 
 type SalaryStatus = Database["public"]["Enums"]["salary_status"];
 type Teacher = Database["public"]["Tables"]["teachers"]["Row"];
@@ -238,6 +239,21 @@ export default function Teachers() {
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2" onClick={() => handleGeneratePayslip(item)}>
               <FileText className="h-4 w-4" /> Generate Payslip
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2" onClick={() => {
+              generateTeacherIdCardPDF({
+                name: item.name,
+                designation: item.subject ? `${item.subject} Teacher` : "Teacher",
+                teacherId: item.teacher_id || "—",
+                bloodGroup: item.blood_group || "—",
+                fatherMotherName: item.emergency_contact || "—",
+                contact: item.phone || "—",
+                address: [item.permanent_address, item.city, item.state, item.pin_code].filter(Boolean).join(", ") || "—",
+                photoUrl: item.photo_url,
+              });
+              toast.success("ID Card generated!");
+            }}>
+              <CreditCard className="h-4 w-4" /> Generate ID Card
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2" onClick={() => handleEdit(item)}>
               <Pencil className="h-4 w-4" /> Edit
