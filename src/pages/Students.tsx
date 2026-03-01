@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import { StudentDetailsDialog } from "@/components/ViewDetailsDialogs";
 import { StudentFormDialog } from "@/components/StudentFormDialog";
 import { SendMessageDialog } from "@/components/SendMessageDialog";
 import type { Database } from "@/integrations/supabase/types";
+import { generateStudentIdCardPDF, generateCertificatePDF } from "@/lib/pdfDocuments";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
 type StudentInsert = Database["public"]["Tables"]["students"]["Insert"];
@@ -277,6 +278,35 @@ export default function Students() {
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2" onClick={() => handleSendMessage(item)}>
               <Mail className="h-4 w-4" /> Send Email
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2" onClick={() => {
+              generateStudentIdCardPDF({
+                name: item.name,
+                idCardNo: item.admission_no || item.roll_no || "—",
+                fatherMotherName: item.parent_name || item.mother_name || "—",
+                className: item.classes?.name || "—",
+                dob: item.date_of_birth || "—",
+                gender: item.gender || "—",
+                contact: item.phone || "—",
+                address: [item.address, item.city, item.district, item.state, item.pin_code].filter(Boolean).join(", ") || "—",
+                photoUrl: item.photo_url,
+              });
+              toast.success("ID Card generated!");
+            }}>
+              <CreditCard className="h-4 w-4" /> Generate ID Card
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2" onClick={() => {
+              generateCertificatePDF({
+                studentName: item.name,
+                className: item.classes?.name || "—",
+                academicYear: "2025-2026",
+                certificateType: "character",
+                date: new Date().toLocaleDateString("en-IN"),
+              });
+              toast.success("Certificate generated!");
+            }}>
+              <Award className="h-4 w-4" /> Generate Certificate
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(item.id)}>

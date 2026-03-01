@@ -11,11 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeeStructures, useCreateFeeStructure, useDeleteFeeStructure, useFeeInstallments, useCreateFeeInstallment, useUpdateFeeInstallment } from "@/hooks/useFees";
 import { useClasses } from "@/hooks/useClasses";
 import { useStudents } from "@/hooks/useStudents";
-import { IndianRupee, Plus, MoreHorizontal, Trash2, CheckCircle2, Receipt } from "lucide-react";
+import { IndianRupee, Plus, MoreHorizontal, Trash2, CheckCircle2, Receipt, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateFeeReceiptPDF } from "@/lib/pdfDocuments";
 
 export default function FeeManagement() {
   const { data: structures, isLoading: sLoading } = useFeeStructures();
@@ -94,11 +95,32 @@ export default function FeeManagement() {
     },
     { key: "receipt_number", label: "Receipt", render: (i: any) => i.receipt_number || "—" },
     {
-      key: "actions", label: "Actions", render: (i: any) => i.status !== "paid" ? (
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
-          <CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid
-        </Button>
-      ) : null,
+      key: "actions", label: "Actions", render: (i: any) => (
+        <div className="flex gap-1">
+          {i.status !== "paid" ? (
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
+              <CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => {
+              generateFeeReceiptPDF({
+                receiptNo: i.receipt_number || `REC-${i.id.slice(0, 8).toUpperCase()}`,
+                studentName: i.students?.name || "—",
+                rollNo: i.students?.roll_no || "—",
+                className: "—",
+                fatherName: "—",
+                paymentDate: i.paid_date ? format(new Date(i.paid_date), "dd MMM yyyy") : new Date().toLocaleDateString("en-IN"),
+                items: [{ description: i.fee_structures?.name || "Fee", amount: Number(i.amount) }],
+                totalAmount: Number(i.amount),
+                paymentMode: "Cash",
+              });
+              toast.success("Receipt generated!");
+            }}>
+              <FileText className="h-3.5 w-3.5" /> Receipt
+            </Button>
+          )}
+        </div>
+      ),
     },
   ];
 

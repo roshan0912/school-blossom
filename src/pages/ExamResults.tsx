@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, FileText, Loader2, ScrollText } from "lucide-react";
 import { useExams, useExamResults, useBulkSaveExamResults } from "@/hooks/useExams";
 import { useStudents } from "@/hooks/useStudents";
 import { calculateGrade, generateReportCardPDF } from "@/lib/pdfGenerator";
+import { generateMarksheetPDF } from "@/lib/pdfDocuments";
 import { toast } from "sonner";
 
 export default function ExamResults() {
@@ -209,7 +210,7 @@ export default function ExamResults() {
                           </Badge>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 flex gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -218,6 +219,38 @@ export default function ExamResults() {
                         >
                           <FileText className="mr-2 h-4 w-4" />
                           Report Card
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (!exam || studentMarks === undefined) return;
+                            const pct = (studentMarks / (exam.total_marks || 100)) * 100;
+                            generateMarksheetPDF({
+                              studentName: student.name,
+                              rollNo: student.roll_no || "—",
+                              className: (student as any).classes?.name || "—",
+                              academicYear: "2025-2026",
+                              dob: (student as any).date_of_birth || "—",
+                              fatherName: (student as any).parent_name || "—",
+                              motherName: (student as any).mother_name || "—",
+                              results: [{
+                                subject: exam.subject || exam.name,
+                                marksObtained: studentMarks,
+                                totalMarks: exam.total_marks || 100,
+                                grade: calculateGrade(pct),
+                              }],
+                              totalMarks: exam.total_marks || 100,
+                              obtainedMarks: studentMarks,
+                              percentage: pct,
+                              overallGrade: calculateGrade(pct),
+                            });
+                            toast.success("Marksheet generated!");
+                          }}
+                          disabled={studentMarks === undefined}
+                        >
+                          <ScrollText className="mr-2 h-4 w-4" />
+                          Marksheet
                         </Button>
                       </td>
                     </tr>
