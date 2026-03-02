@@ -81,9 +81,13 @@ export function StudentDetailsDialog({ open, onOpenChange, student }: StudentDet
         <div className="space-y-4">
           {/* Profile Header */}
           <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
-              {student.name.split(" ").map((n) => n[0]).join("")}
-            </div>
+            {(student as any).photo_url ? (
+              <img src={(student as any).photo_url} alt={student.name} className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+                {student.name.split(" ").map((n) => n[0]).join("")}
+              </div>
+            )}
             <div className="flex-1">
               <h3 className="text-lg font-semibold">{student.name}</h3>
               <div className="flex flex-wrap gap-2 mt-1">
@@ -274,9 +278,13 @@ export function TeacherDetailsDialog({ open, onOpenChange, teacher }: TeacherDet
         <div className="space-y-4">
           {/* Profile Header */}
           <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border">
-            <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center text-success font-bold text-xl border-2 border-success/20">
-              {teacher.name.split(" ").map((n) => n[0]).join("")}
-            </div>
+            {(teacher as any).photo_url ? (
+              <img src={(teacher as any).photo_url} alt={teacher.name} className="w-16 h-16 rounded-full object-cover border-2 border-success/20" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center text-success font-bold text-xl border-2 border-success/20">
+                {teacher.name.split(" ").map((n) => n[0]).join("")}
+              </div>
+            )}
             <div className="flex-1">
               <h3 className="text-lg font-semibold">{teacher.name}</h3>
               <p className="text-sm text-muted-foreground">{teacher.subject || "No subject assigned"}</p>

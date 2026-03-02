@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Megaphone,
   Sparkles,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ const navigationSections = [
       { name: "Timetable", href: "/timetable", icon: CalendarDays },
       { name: "Attendance", href: "/attendance", icon: Calendar },
       { name: "Exams", href: "/exams", icon: FileText },
+      { name: "Marksheet", href: "/marksheet", icon: ScrollText },
       { name: "Homework", href: "/homework", icon: ClipboardList },
     ],
   },

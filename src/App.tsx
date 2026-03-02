@@ -17,6 +17,7 @@ import Attendance from "./pages/Attendance";
 import Payroll from "./pages/Payroll";
 import Exams from "./pages/Exams";
 import ExamResults from "./pages/ExamResults";
+import MarksheetGenerator from "./pages/MarksheetGenerator";
 import Homework from "./pages/Homework";
 import FeeManagement from "./pages/FeeManagement";
 import Library from "./pages/Library";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/payroll" element={<Payroll />} />
               <Route path="/exams" element={<Exams />} />
               <Route path="/exams/:examId/results" element={<ExamResults />} />
+              <Route path="/marksheet" element={<MarksheetGenerator />} />
               <Route path="/homework" element={<Homework />} />
               <Route path="/fees" element={<FeeManagement />} />
               <Route path="/library" element={<Library />} />

@@ -229,9 +229,13 @@ export default function Students() {
       label: "Student",
       render: (item: StudentWithClass) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
-            {item.name.split(" ").map((n) => n[0]).join("")}
-          </div>
+          {item.photo_url ? (
+            <img src={item.photo_url} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-border" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
+              {item.name.split(" ").map((n) => n[0]).join("")}
+            </div>
+          )}
           <div>
             <p className="font-medium">{item.name}</p>
             <p className="text-xs text-muted-foreground">Roll No: {item.roll_no || "N/A"}</p>
