@@ -614,3 +614,124 @@ function numberToWords(n: number): string {
   if (num < 10000000) return numberToWords(Math.floor(num / 100000)) + " Lakh" + (num % 100000 ? " " + numberToWords(num % 100000) : "");
   return numberToWords(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 ? " " + numberToWords(num % 10000000) : "");
 }
+
+// ============== DAILY ATTENDANCE REPORT ==============
+interface AttendanceReportEntry {
+  name: string;
+  rollNo: string;
+  className?: string;
+  status: "present" | "absent" | "late";
+}
+
+interface DailyAttendanceReportData {
+  date: string;
+  type: "students" | "teachers";
+  entries: AttendanceReportEntry[];
+  stats: { present: number; absent: number; late: number };
+}
+
+export function generateDailyAttendancePDF(data: DailyAttendanceReportData): void {
+  const doc = new jsPDF();
+
+  // ── Header band ──
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, 0, 210, 38, "F");
+
+  // Gold accent line
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 38, 210, 2, "F");
+
+  // School name
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(SCHOOL_NAME, 105, 12, { align: "center" });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 105, 18, { align: "center" });
+
+  doc.setFontSize(7);
+  doc.text(SCHOOL_TRUST, 105, 23, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 105, 28, { align: "center" });
+  doc.text(SCHOOL_EMAIL, 105, 33, { align: "center" });
+
+  // ── Title section ──
+  doc.setTextColor(...BLACK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  const title = data.type === "students" ? "DAILY STUDENT ATTENDANCE REPORT" : "DAILY TEACHER ATTENDANCE REPORT";
+  doc.text(title, 105, 50, { align: "center" });
+
+  // Gold underline
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.8);
+  doc.line(40, 53, 170, 53);
+
+  // Date & stats
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Date: ${data.date}`, 14, 62);
+
+  const total = data.entries.length;
+  const attendanceRate = total > 0 ? (((data.stats.present + data.stats.late) / total) * 100).toFixed(1) : "0";
+  doc.text(`Total: ${total}  |  Present: ${data.stats.present}  |  Late: ${data.stats.late}  |  Absent: ${data.stats.absent}  |  Rate: ${attendanceRate}%`, 14, 69);
+
+  // ── Table ──
+  const tableData = data.entries.map((entry, i) => [
+    (i + 1).toString(),
+    entry.name,
+    entry.rollNo || "-",
+    entry.className || "-",
+    entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
+  ]);
+
+  autoTable(doc, {
+    startY: 75,
+    head: [["#", "Name", data.type === "students" ? "Roll No" : "ID", "Class/Subject", "Status"]],
+    body: tableData,
+    theme: "grid",
+    headStyles: {
+      fillColor: GREEN_DARK,
+      textColor: WHITE,
+      fontStyle: "bold",
+      fontSize: 9,
+      halign: "center",
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: BLACK,
+    },
+    alternateRowStyles: {
+      fillColor: [240, 248, 240],
+    },
+    columnStyles: {
+      0: { halign: "center", cellWidth: 12 },
+      4: { halign: "center", cellWidth: 22 },
+    },
+    didParseCell: (hookData) => {
+      if (hookData.section === "body" && hookData.column.index === 4) {
+        const val = hookData.cell.raw as string;
+        if (val === "Present") hookData.cell.styles.textColor = [34, 139, 34];
+        else if (val === "Absent") hookData.cell.styles.textColor = [220, 38, 38];
+        else if (val === "Late") hookData.cell.styles.textColor = [202, 138, 4];
+      }
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  // ── Footer ──
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, pageHeight - 18, 210, 18, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(0, pageHeight - 18, 210, 1, "F");
+
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(7);
+  doc.text("This is a system-generated report.", 105, pageHeight - 10, { align: "center" });
+  doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 105, pageHeight - 5, { align: "center" });
+
+  const typeLabel = data.type === "students" ? "Student" : "Teacher";
+  doc.save(`${typeLabel}_Attendance_${data.date}.pdf`);
+}
