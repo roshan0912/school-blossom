@@ -98,14 +98,17 @@ export function useWeeklyAttendance() {
           supabase.from("teachers").select("id", { count: "exact", head: true }),
         ]);
 
-        const presentStudents = studentResult.data?.filter(a => a.status === "present").length || 0;
-        const presentTeachers = teacherResult.data?.filter(a => a.status === "present").length || 0;
+        const presentStudents = studentResult.data?.filter(a => a.status === "present" || a.status === "late").length || 0;
+        const presentTeachers = teacherResult.data?.filter(a => a.status === "present" || a.status === "late").length || 0;
 
-        const studentRate = studentResult.data?.length 
-          ? (presentStudents / studentResult.data.length) * 100 
+        const totalStudentCount = totalStudents.count || 0;
+        const totalTeacherCount = totalTeachers.count || 0;
+
+        const studentRate = totalStudentCount > 0
+          ? (presentStudents / totalStudentCount) * 100 
           : 0;
-        const teacherRate = teacherResult.data?.length 
-          ? (presentTeachers / teacherResult.data.length) * 100 
+        const teacherRate = totalTeacherCount > 0
+          ? (presentTeachers / totalTeacherCount) * 100 
           : 0;
 
         weekData.push({
