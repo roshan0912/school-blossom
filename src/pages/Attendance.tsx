@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, CheckCircle2, XCircle, Clock, Users, Loader2 } from "lucide-react";
+import { CalendarIcon, CheckCircle2, XCircle, Clock, Users, Loader2, Download } from "lucide-react";
 import { format } from "date-fns";
+import { generateDailyAttendancePDF } from "@/lib/pdfDocuments";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useStudents } from "@/hooks/useStudents";
@@ -140,6 +141,30 @@ export default function Attendance() {
           <Button variant="outline" onClick={markAllPresent}>
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark All Present
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const items = activeTab === "students" ? students : teachers;
+              const getStatus = activeTab === "students" ? getStudentAttendanceStatus : getTeacherAttendanceStatus;
+              if (!items || items.length === 0) { toast.error("No data to download"); return; }
+              const entries = items.map((item) => ({
+                name: item.name,
+                rollNo: activeTab === "students" ? ((item as any).roll_no || "") : ((item as any).teacher_id || ""),
+                className: activeTab === "students" ? ((item as any).classes?.name || "") : ((item as any).subject || ""),
+                status: getStatus(item.id),
+              }));
+              generateDailyAttendancePDF({
+                date: format(date, "dd-MM-yyyy"),
+                type: activeTab as "students" | "teachers",
+                entries,
+                stats,
+              });
+              toast.success("Attendance PDF downloaded");
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download PDF
           </Button>
           <Button 
             className="btn-gradient" 
