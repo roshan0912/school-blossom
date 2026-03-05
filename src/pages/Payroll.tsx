@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, FileText, IndianRupee, Download, CheckCircle2, Plus, Minus, Trash2 } from "lucide-react";
+import { MoreHorizontal, FileText, IndianRupee, Download, CheckCircle2, Plus, Minus, Trash2, Edit2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,8 +26,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTeachers } from "@/hooks/useTeachers";
+import { supabase } from "@/integrations/supabase/client";
 import { generatePayslipPDF, formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 type PayrollItem = {
   id: string;
@@ -37,6 +39,10 @@ type PayrollItem = {
   salary_status: "paid" | "pending" | null;
   teacher_id: string | null;
   photo_url: string | null;
+  subject: string | null;
+  phone: string | null;
+  bank_name: string | null;
+  bank_account: string | null;
 };
 
 const statusColors = {
@@ -56,8 +62,11 @@ interface AdjustmentItem {
 
 export default function Payroll() {
   const { data: teachers, isLoading } = useTeachers();
+  const queryClient = useQueryClient();
   const [payslipDialogOpen, setPayslipDialogOpen] = useState(false);
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<PayrollItem | null>(null);
+  const [newSalary, setNewSalary] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toLocaleString("en-IN", { month: "long" })
   );
@@ -67,7 +76,6 @@ export default function Payroll() {
 
   const addAllowance = () => setAllowances([...allowances, { label: "", amount: 0 }]);
   const addDeduction = () => setDeductions([...deductions, { label: "", amount: 0 }]);
-
   const removeAllowance = (i: number) => setAllowances(allowances.filter((_, idx) => idx !== i));
   const removeDeduction = (i: number) => setDeductions(deductions.filter((_, idx) => idx !== i));
 
@@ -89,6 +97,60 @@ export default function Payroll() {
     setPayslipDialogOpen(true);
   };
 
+  const openSalaryDialog = (teacher: PayrollItem) => {
+    setSelectedTeacher(teacher);
+    setNewSalary(String(teacher.salary || 0));
+    setSalaryDialogOpen(true);
+  };
+
+  const handleUpdateSalary = async () => {
+    if (!selectedTeacher) return;
+    const { error } = await supabase
+      .from("teachers")
+      .update({ salary: Number(newSalary) || 0 })
+      .eq("id", selectedTeacher.id);
+    if (error) {
+      toast.error("Failed to update salary");
+    } else {
+      toast.success("Salary updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      setSalaryDialogOpen(false);
+    }
+  };
+
+  const handleMarkAsPaid = async (teacher: PayrollItem) => {
+    const { error } = await supabase
+      .from("teachers")
+      .update({ salary_status: "paid" as const })
+      .eq("id", teacher.id);
+    if (error) {
+      toast.error("Failed to update status");
+    } else {
+      // Record in salary_payments
+      await supabase.from("salary_payments").insert({
+        teacher_id: teacher.id,
+        amount: teacher.salary || 0,
+        month: selectedMonth,
+        year: selectedYear,
+      });
+      toast.success(`${teacher.name} marked as paid`);
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+    }
+  };
+
+  const handleMarkAsPending = async (teacher: PayrollItem) => {
+    const { error } = await supabase
+      .from("teachers")
+      .update({ salary_status: "pending" as const })
+      .eq("id", teacher.id);
+    if (error) {
+      toast.error("Failed to update status");
+    } else {
+      toast.success(`${teacher.name} marked as pending`);
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+    }
+  };
+
   const handleGeneratePayslip = () => {
     if (!selectedTeacher) return;
     const baseSalary = selectedTeacher.salary || 0;
@@ -103,7 +165,7 @@ export default function Payroll() {
     generatePayslipPDF({
       employeeName: selectedTeacher.name,
       employeeId: selectedTeacher.teacher_id || selectedTeacher.id.slice(0, 8).toUpperCase(),
-      role: "Teacher",
+      role: selectedTeacher.subject ? `Teacher – ${selectedTeacher.subject}` : "Teacher",
       month: selectedMonth,
       year: selectedYear,
       baseSalary,
@@ -136,7 +198,7 @@ export default function Payroll() {
           )}
           <div>
             <p className="font-medium">{item.name}</p>
-            <p className="text-xs text-muted-foreground">Teacher</p>
+            <p className="text-xs text-muted-foreground">{item.subject || "Teacher"}</p>
           </div>
         </div>
       ),
@@ -173,9 +235,16 @@ export default function Payroll() {
             <DropdownMenuItem className="gap-2" onClick={() => openPayslipDialog(item)}>
               <FileText className="h-4 w-4" /> Generate Payslip
             </DropdownMenuItem>
-            {item.salary_status === "pending" && (
-              <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem className="gap-2" onClick={() => openSalaryDialog(item)}>
+              <Edit2 className="h-4 w-4" /> Edit Salary
+            </DropdownMenuItem>
+            {item.salary_status === "pending" ? (
+              <DropdownMenuItem className="gap-2" onClick={() => handleMarkAsPaid(item)}>
                 <CheckCircle2 className="h-4 w-4" /> Mark as Paid
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem className="gap-2" onClick={() => handleMarkAsPending(item)}>
+                <IndianRupee className="h-4 w-4" /> Mark as Pending
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -247,7 +316,6 @@ export default function Payroll() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Month & Year */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Month</Label>
@@ -269,7 +337,6 @@ export default function Payroll() {
               </div>
             </div>
 
-            {/* Base Salary */}
             <div className="p-3 rounded-lg bg-muted/30 border">
               <p className="text-sm text-muted-foreground">Base Salary</p>
               <p className="text-lg font-bold">{formatINR(selectedTeacher?.salary || 0)}</p>
@@ -285,7 +352,7 @@ export default function Payroll() {
               </div>
               {allowances.map((a, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <Input placeholder="Label (e.g. HRA)" value={a.label} onChange={e => updateAllowance(i, "label", e.target.value)} className="flex-1" />
+                  <Input placeholder="Label (e.g. HRA, DA, TA)" value={a.label} onChange={e => updateAllowance(i, "label", e.target.value)} className="flex-1" />
                   <Input type="number" placeholder="Amount" value={a.amount || ""} onChange={e => updateAllowance(i, "amount", e.target.value)} className="w-28" />
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeAllowance(i)} className="text-destructive h-8 w-8">
                     <Trash2 className="h-4 w-4" />
@@ -304,7 +371,7 @@ export default function Payroll() {
               </div>
               {deductions.map((d, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <Input placeholder="Label (e.g. PF)" value={d.label} onChange={e => updateDeduction(i, "label", e.target.value)} className="flex-1" />
+                  <Input placeholder="Label (e.g. PF, TDS, ESI)" value={d.label} onChange={e => updateDeduction(i, "label", e.target.value)} className="flex-1" />
                   <Input type="number" placeholder="Amount" value={d.amount || ""} onChange={e => updateDeduction(i, "amount", e.target.value)} className="w-28" />
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeDeduction(i)} className="text-destructive h-8 w-8">
                     <Trash2 className="h-4 w-4" />
@@ -336,6 +403,30 @@ export default function Payroll() {
             <Button onClick={handleGeneratePayslip} className="gap-2">
               <Download className="h-4 w-4" /> Generate & Download
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Salary Dialog */}
+      <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Salary — {selectedTeacher?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Monthly Salary (₹)</Label>
+              <Input
+                type="number"
+                value={newSalary}
+                onChange={e => setNewSalary(e.target.value)}
+                placeholder="Enter salary amount"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSalaryDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateSalary}>Save Salary</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
