@@ -71,6 +71,7 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/ai-assistant" element={<AiAssistant />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

@@ -73,6 +73,7 @@ const navigationSections = [
   {
     label: "System",
     items: [
+      { name: "AI Assistant", href: "/ai-assistant", icon: Sparkles },
       { name: "Announcements", href: "/announcements", icon: Megaphone },
       { name: "Reports", href: "/reports", icon: BarChart3 },
       { name: "Settings", href: "/settings", icon: Settings },
