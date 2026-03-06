@@ -79,11 +79,11 @@ const defaultBackupSettings: BackupSettings = {
 const demoBillingHistory: BillingItem[] = [
   {
     id: "bill-001",
-    name: "School Management System",
-    description: "Complete school management solution",
-    amount: 6700,
-    date: "2026-02-01",
-    validTill: "2029-02-01",
+    name: "Vedanta Valley Public School - Cloud ERP",
+    description: "Complete school management system with all modules",
+    amount: 6400,
+    date: "2026-03-01",
+    validTill: "2079-03-01",
     status: "active",
     type: "subscription",
   },
