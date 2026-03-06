@@ -28,6 +28,7 @@ import Announcements from "./pages/Announcements";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
+import AiAssistant from "./pages/AiAssistant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/ai-assistant" element={<AiAssistant />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

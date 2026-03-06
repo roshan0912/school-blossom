@@ -11,18 +11,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeeStructures, useCreateFeeStructure, useDeleteFeeStructure, useFeeInstallments, useCreateFeeInstallment, useUpdateFeeInstallment } from "@/hooks/useFees";
 import { useClasses } from "@/hooks/useClasses";
 import { useStudents } from "@/hooks/useStudents";
-import { IndianRupee, Plus, MoreHorizontal, Trash2, CheckCircle2, Receipt, FileText } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { IndianRupee, Plus, Trash2, CheckCircle2, Receipt, FileText, Download, TrendingUp } from "lucide-react";
 import { formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { generateFeeReceiptPDF } from "@/lib/pdfDocuments";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
+import { generateFeeReceiptPDF, generateFeeCollectionReportPDF, generateSchoolIncomeReportPDF } from "@/lib/pdfDocuments";
+import { useTotalIncome } from "@/hooks/useDashboardStats";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function FeeManagement() {
   const { data: structures, isLoading: sLoading } = useFeeStructures();
   const { data: installments, isLoading: iLoading } = useFeeInstallments();
   const { data: classes } = useClasses();
   const { data: students } = useStudents();
+  const { data: incomeData } = useTotalIncome();
   const createStructure = useCreateFeeStructure();
   const deleteStructure = useDeleteFeeStructure();
   const createInstallment = useCreateFeeInstallment();
@@ -38,13 +40,9 @@ export default function FeeManagement() {
   const handleCreateStructure = () => {
     if (!sForm.name || !sForm.amount) { toast.error("Fill required fields"); return; }
     createStructure.mutate({
-      name: sForm.name,
-      fee_type: sForm.fee_type,
-      amount: Number(sForm.amount),
-      class_id: sForm.class_id || null,
-      due_date: sForm.due_date || null,
-      late_fine_per_day: Number(sForm.late_fine_per_day) || 0,
-      academic_year: sForm.academic_year || null,
+      name: sForm.name, fee_type: sForm.fee_type, amount: Number(sForm.amount),
+      class_id: sForm.class_id || null, due_date: sForm.due_date || null,
+      late_fine_per_day: Number(sForm.late_fine_per_day) || 0, academic_year: sForm.academic_year || null,
     });
     setStructureDialog(false);
     setSForm({ name: "", fee_type: "tuition", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: "" });
@@ -52,12 +50,7 @@ export default function FeeManagement() {
 
   const handleCreateInstallment = () => {
     if (!iForm.student_id || !iForm.fee_structure_id || !iForm.amount || !iForm.due_date) { toast.error("Fill all fields"); return; }
-    createInstallment.mutate({
-      student_id: iForm.student_id,
-      fee_structure_id: iForm.fee_structure_id,
-      amount: Number(iForm.amount),
-      due_date: iForm.due_date,
-    });
+    createInstallment.mutate({ student_id: iForm.student_id, fee_structure_id: iForm.fee_structure_id, amount: Number(iForm.amount), due_date: iForm.due_date });
     setInstallmentDialog(false);
     setIForm({ student_id: "", fee_structure_id: "", amount: "", due_date: "" });
   };
@@ -66,19 +59,71 @@ export default function FeeManagement() {
     updateInstallment.mutate({ id, status: "paid", paid_date: new Date().toISOString().split("T")[0], receipt_number: `REC-${Date.now().toString(36).toUpperCase()}` });
   };
 
+  const downloadFeeReport = (period: "weekly" | "monthly" | "all") => {
+    if (!installments || installments.length === 0) { toast.error("No fee data"); return; }
+    const now = new Date();
+    let filtered = installments;
+    let periodLabel = "All Time";
+
+    if (period === "monthly") {
+      const start = startOfMonth(now);
+      const end = endOfMonth(now);
+      filtered = installments.filter(i => {
+        const d = parseISO(i.due_date);
+        return isWithinInterval(d, { start, end });
+      });
+      periodLabel = format(now, "MMMM yyyy");
+    } else if (period === "weekly") {
+      const start = startOfWeek(now, { weekStartsOn: 1 });
+      const end = endOfWeek(now, { weekStartsOn: 1 });
+      filtered = installments.filter(i => {
+        const d = parseISO(i.due_date);
+        return isWithinInterval(d, { start, end });
+      });
+      periodLabel = `Week of ${format(start, "dd MMM")} - ${format(end, "dd MMM yyyy")}`;
+    }
+
+    const entries = filtered.map(i => ({
+      studentName: (i as any).students?.name || "—",
+      rollNo: (i as any).students?.roll_no || "—",
+      feeType: (i as any).fee_structures?.name || "—",
+      amount: Number(i.amount),
+      dueDate: format(parseISO(i.due_date), "dd MMM yyyy"),
+      status: i.status,
+      paidDate: i.paid_date ? format(parseISO(i.paid_date), "dd MMM yyyy") : undefined,
+      receiptNo: i.receipt_number || undefined,
+    }));
+
+    generateFeeCollectionReportPDF({
+      period: periodLabel,
+      entries,
+      totalCollected: filtered.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0),
+      totalPending: filtered.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0),
+    });
+    toast.success(`${periodLabel} report downloaded`);
+  };
+
+  const downloadIncomeReport = () => {
+    if (!incomeData) { toast.error("No income data"); return; }
+    generateSchoolIncomeReportPDF({
+      period: format(new Date(), "MMMM yyyy"),
+      feeCollected: incomeData.feeCollected,
+      feePending: incomeData.feePending,
+      salaryPaid: incomeData.salaryPaid,
+      netIncome: incomeData.netIncome,
+    });
+    toast.success("Income report downloaded");
+  };
+
   const structureColumns = [
     { key: "name", label: "Fee Name", render: (i: any) => <span className="font-medium">{i.name}</span> },
     { key: "fee_type", label: "Type", render: (i: any) => <Badge variant="outline">{i.fee_type}</Badge> },
     { key: "amount", label: "Amount", render: (i: any) => <span className="font-semibold">{formatINR(Number(i.amount))}</span> },
     { key: "classes", label: "Class", render: (i: any) => i.classes?.name || "All Classes" },
     { key: "due_date", label: "Due Date", render: (i: any) => i.due_date ? format(new Date(i.due_date), "dd MMM yyyy") : "—" },
-    {
-      key: "actions", label: "Actions", render: (i: any) => (
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteStructure.mutate(i.id)}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      ),
-    },
+    { key: "actions", label: "Actions", render: (i: any) => (
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteStructure.mutate(i.id)}><Trash2 className="h-4 w-4" /></Button>
+    )},
   ];
 
   const installmentColumns = [
@@ -86,52 +131,60 @@ export default function FeeManagement() {
     { key: "fee", label: "Fee Type", render: (i: any) => i.fee_structures?.name || "—" },
     { key: "amount", label: "Amount", render: (i: any) => formatINR(Number(i.amount)) },
     { key: "due_date", label: "Due Date", render: (i: any) => format(new Date(i.due_date), "dd MMM yyyy") },
-    {
-      key: "status", label: "Status", render: (i: any) => (
-        <Badge variant="outline" className={i.status === "paid" ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
-          {i.status === "paid" ? "Paid" : "Pending"}
-        </Badge>
-      ),
-    },
+    { key: "status", label: "Status", render: (i: any) => (
+      <Badge variant="outline" className={i.status === "paid" ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
+        {i.status === "paid" ? "Paid" : "Pending"}
+      </Badge>
+    )},
     { key: "receipt_number", label: "Receipt", render: (i: any) => i.receipt_number || "—" },
-    {
-      key: "actions", label: "Actions", render: (i: any) => (
-        <div className="flex gap-1">
-          {i.status !== "paid" ? (
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid
-            </Button>
-          ) : (
-            <Button variant="ghost" size="sm" className="gap-1" onClick={() => {
-              generateFeeReceiptPDF({
-                receiptNo: i.receipt_number || `REC-${i.id.slice(0, 8).toUpperCase()}`,
-                studentName: i.students?.name || "—",
-                rollNo: i.students?.roll_no || "—",
-                className: "—",
-                fatherName: "—",
-                paymentDate: i.paid_date ? format(new Date(i.paid_date), "dd MMM yyyy") : new Date().toLocaleDateString("en-IN"),
-                items: [{ description: i.fee_structures?.name || "Fee", amount: Number(i.amount) }],
-                totalAmount: Number(i.amount),
-                paymentMode: "Cash",
-              });
-              toast.success("Receipt generated!");
-            }}>
-              <FileText className="h-3.5 w-3.5" /> Receipt
-            </Button>
-          )}
-        </div>
-      ),
-    },
+    { key: "actions", label: "Actions", render: (i: any) => (
+      <div className="flex gap-1">
+        {i.status !== "paid" ? (
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
+            <CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" className="gap-1" onClick={() => {
+            generateFeeReceiptPDF({
+              receiptNo: i.receipt_number || `REC-${i.id.slice(0, 8).toUpperCase()}`,
+              studentName: i.students?.name || "—", rollNo: i.students?.roll_no || "—",
+              className: "—", fatherName: "—",
+              paymentDate: i.paid_date ? format(new Date(i.paid_date), "dd MMM yyyy") : new Date().toLocaleDateString("en-IN"),
+              items: [{ description: i.fee_structures?.name || "Fee", amount: Number(i.amount) }],
+              totalAmount: Number(i.amount), paymentMode: "Cash",
+            });
+            toast.success("Receipt generated!");
+          }}>
+            <FileText className="h-3.5 w-3.5" /> Receipt
+          </Button>
+        )}
+      </div>
+    )},
   ];
 
   return (
     <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Fee Management</h1>
-        <p className="page-description">Fee structures, installments, and payment tracking</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">Fee Management</h1>
+          <p className="page-description">Fee structures, installments, and payment tracking</p>
+        </div>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> Download Reports</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => downloadFeeReport("weekly")}>Weekly Fee Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadFeeReport("monthly")}>Monthly Fee Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadFeeReport("all")}>All Fee Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadIncomeReport}>School Income Report</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <Card><CardContent className="p-6 flex items-center justify-between">
           <div><p className="text-sm font-medium text-muted-foreground">Total Fees</p><p className="text-2xl font-bold mt-1">{formatINR(totalCollected + totalPending)}</p></div>
           <div className="p-3 rounded-xl bg-primary/10 text-primary"><IndianRupee className="h-6 w-6" /></div>
@@ -143,6 +196,10 @@ export default function FeeManagement() {
         <Card><CardContent className="p-6 flex items-center justify-between">
           <div><p className="text-sm font-medium text-muted-foreground">Pending</p><p className="text-2xl font-bold mt-1 text-warning">{formatINR(totalPending)}</p></div>
           <div className="p-3 rounded-xl bg-warning/10 text-warning"><Receipt className="h-6 w-6" /></div>
+        </CardContent></Card>
+        <Card><CardContent className="p-6 flex items-center justify-between">
+          <div><p className="text-sm font-medium text-muted-foreground">Net Income</p><p className="text-2xl font-bold mt-1 text-primary">{formatINR(incomeData?.netIncome || 0)}</p></div>
+          <div className="p-3 rounded-xl bg-primary/10 text-primary"><TrendingUp className="h-6 w-6" /></div>
         </CardContent></Card>
       </div>
 
@@ -184,9 +241,7 @@ export default function FeeManagement() {
               <div><Label>Class</Label>
                 <Select value={sForm.class_id} onValueChange={(v) => setSForm({ ...sForm, class_id: v })}>
                   <SelectTrigger><SelectValue placeholder="All Classes" /></SelectTrigger>
-                  <SelectContent>
-                    {classes?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{classes?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label>Due Date</Label><Input type="date" value={sForm.due_date} onChange={(e) => setSForm({ ...sForm, due_date: e.target.value })} /></div>

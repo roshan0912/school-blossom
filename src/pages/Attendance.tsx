@@ -151,7 +151,7 @@ export default function Attendance() {
               const entries = items.map((item) => ({
                 name: item.name,
                 rollNo: activeTab === "students" ? ((item as any).roll_no || "") : ((item as any).teacher_id || ""),
-                className: activeTab === "students" ? ((item as any).classes?.name || "") : ((item as any).subject || ""),
+                className: activeTab === "students" ? ((item as any).classes?.name || "") : ((item as any).qualification || (item as any).subject || "Teacher"),
                 status: getStatus(item.id),
               }));
               generateDailyAttendancePDF({
