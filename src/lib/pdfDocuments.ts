@@ -660,7 +660,7 @@ export function generateDailyAttendancePDF(data: DailyAttendanceReportData): voi
   doc.setTextColor(...BLACK);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  const title = data.type === "students" ? "DAILY STUDENT ATTENDANCE REPORT" : "DAILY TEACHER ATTENDANCE REPORT";
+  const title = data.type === "students" ? "DAILY STUDENT ATTENDANCE REPORT" : "DAILY STAFF ATTENDANCE REPORT";
   doc.text(title, 105, 50, { align: "center" });
 
   // Gold underline
