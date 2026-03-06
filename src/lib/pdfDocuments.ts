@@ -735,3 +735,175 @@ export function generateDailyAttendancePDF(data: DailyAttendanceReportData): voi
   const typeLabel = data.type === "students" ? "Student" : "Teacher";
   doc.save(`${typeLabel}_Attendance_${data.date}.pdf`);
 }
+
+// ============== FEE COLLECTION REPORT ==============
+interface FeeCollectionReportData {
+  period: string;
+  entries: Array<{
+    studentName: string;
+    rollNo: string;
+    feeType: string;
+    amount: number;
+    dueDate: string;
+    status: string;
+    paidDate?: string;
+    receiptNo?: string;
+  }>;
+  totalCollected: number;
+  totalPending: number;
+}
+
+export function generateFeeCollectionReportPDF(data: FeeCollectionReportData): void {
+  const doc = new jsPDF();
+
+  // Header
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, 0, 210, 38, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 38, 210, 2, "F");
+
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(SCHOOL_NAME, 105, 12, { align: "center" });
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 105, 18, { align: "center" });
+  doc.setFontSize(7);
+  doc.text(SCHOOL_TRUST, 105, 23, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 105, 28, { align: "center" });
+  doc.text(SCHOOL_EMAIL, 105, 33, { align: "center" });
+
+  // Title
+  doc.setTextColor(...BLACK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("FEE COLLECTION REPORT", 105, 50, { align: "center" });
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.8);
+  doc.line(50, 53, 160, 53);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Period: ${data.period}`, 14, 62);
+
+  const totalFees = data.totalCollected + data.totalPending;
+  doc.text(`Total: ${formatINR(totalFees)}  |  Collected: ${formatINR(data.totalCollected)}  |  Pending: ${formatINR(data.totalPending)}`, 14, 69);
+
+  // Table
+  autoTable(doc, {
+    startY: 75,
+    head: [["#", "Student", "Roll No", "Fee Type", "Amount", "Due Date", "Status", "Receipt"]],
+    body: data.entries.map((e, i) => [
+      (i + 1).toString(),
+      e.studentName,
+      e.rollNo,
+      e.feeType,
+      formatINR(e.amount),
+      e.dueDate,
+      e.status.charAt(0).toUpperCase() + e.status.slice(1),
+      e.receiptNo || "—",
+    ]),
+    theme: "grid",
+    headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8 },
+    bodyStyles: { fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [240, 248, 240] },
+    columnStyles: { 0: { halign: "center", cellWidth: 8 } },
+    didParseCell: (hookData) => {
+      if (hookData.section === "body" && hookData.column.index === 6) {
+        const val = hookData.cell.raw as string;
+        if (val === "Paid") hookData.cell.styles.textColor = [34, 139, 34];
+        else if (val === "Pending") hookData.cell.styles.textColor = [202, 138, 4];
+        else if (val === "Overdue") hookData.cell.styles.textColor = [220, 38, 38];
+      }
+    },
+    margin: { left: 10, right: 10 },
+  });
+
+  // Footer
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, pageHeight - 18, 210, 18, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(0, pageHeight - 18, 210, 1, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(7);
+  doc.text("This is a system-generated report.", 105, pageHeight - 10, { align: "center" });
+  doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 105, pageHeight - 5, { align: "center" });
+
+  doc.save(`Fee_Collection_Report_${data.period.replace(/\s+/g, "_")}.pdf`);
+}
+
+// ============== SCHOOL INCOME REPORT ==============
+interface SchoolIncomeReportData {
+  period: string;
+  feeCollected: number;
+  feePending: number;
+  salaryPaid: number;
+  netIncome: number;
+}
+
+export function generateSchoolIncomeReportPDF(data: SchoolIncomeReportData): void {
+  const doc = new jsPDF();
+
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, 0, 210, 38, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 38, 210, 2, "F");
+
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(SCHOOL_NAME, 105, 12, { align: "center" });
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 105, 18, { align: "center" });
+  doc.setFontSize(7);
+  doc.text(SCHOOL_TRUST, 105, 23, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 105, 28, { align: "center" });
+
+  doc.setTextColor(...BLACK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("SCHOOL INCOME REPORT", 105, 50, { align: "center" });
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.8);
+  doc.line(50, 53, 160, 53);
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Period: ${data.period}`, 14, 62);
+
+  // Income table
+  autoTable(doc, {
+    startY: 70,
+    head: [["Category", "Amount (₹)"]],
+    body: [
+      ["Fee Collected", formatINR(data.feeCollected)],
+      ["Fee Pending", formatINR(data.feePending)],
+      ["Salary Paid (Expenditure)", formatINR(data.salaryPaid)],
+    ],
+    foot: [["Net Income (Collected - Salary)", formatINR(data.netIncome)]],
+    theme: "grid",
+    headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 11 },
+    footStyles: { fillColor: [245, 245, 245], textColor: BLACK, fontStyle: "bold", fontSize: 11 },
+    bodyStyles: { fontSize: 11 },
+    margin: { left: 30, right: 30 },
+  });
+
+  const sigY = (doc as any).lastAutoTable.finalY + 40;
+  doc.setFontSize(9);
+  doc.line(15, sigY, 55, sigY);
+  doc.text("Accountant", 25, sigY + 5);
+  doc.line(150, sigY, 195, sigY);
+  doc.text("Principal / Director", 155, sigY + 5);
+
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, pageHeight - 18, 210, 18, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(7);
+  doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 105, pageHeight - 8, { align: "center" });
+
+  doc.save(`School_Income_Report_${data.period.replace(/\s+/g, "_")}.pdf`);
+}
