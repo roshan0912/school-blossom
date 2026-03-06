@@ -127,28 +127,46 @@ export function useFeeStats() {
   return useQuery({
     queryKey: ["fee-stats"],
     queryFn: async () => {
-      const { data: students } = await supabase
-        .from("students")
-        .select("fee_status");
+      const { data: installments } = await supabase
+        .from("fee_installments")
+        .select("status, amount");
 
-      if (!students || students.length === 0) {
+      if (!installments || installments.length === 0) {
         return [
-          { name: "Collected", value: 0, color: "hsl(142 76% 36%)" },
-          { name: "Pending", value: 0, color: "hsl(38 92% 50%)" },
-          { name: "Overdue", value: 0, color: "hsl(0 84% 60%)" },
+          { name: "Collected", value: 0, color: "hsl(142 76% 36%)", amount: 0 },
+          { name: "Pending", value: 0, color: "hsl(38 92% 50%)", amount: 0 },
+          { name: "Overdue", value: 0, color: "hsl(0 84% 60%)", amount: 0 },
         ];
       }
 
-      const paid = students.filter(s => s.fee_status === "paid").length;
-      const pending = students.filter(s => s.fee_status === "pending").length;
-      const overdue = students.filter(s => s.fee_status === "overdue").length;
-      const total = students.length;
+      const paidAmount = installments.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0);
+      const pendingAmount = installments.filter(i => i.status === "pending").reduce((s, i) => s + Number(i.amount), 0);
+      const overdueAmount = installments.filter(i => i.status === "overdue").reduce((s, i) => s + Number(i.amount), 0);
+      const totalAmount = paidAmount + pendingAmount + overdueAmount;
 
       return [
-        { name: "Collected", value: total > 0 ? Math.round((paid / total) * 100) : 0, color: "hsl(142 76% 36%)" },
-        { name: "Pending", value: total > 0 ? Math.round((pending / total) * 100) : 0, color: "hsl(38 92% 50%)" },
-        { name: "Overdue", value: total > 0 ? Math.round((overdue / total) * 100) : 0, color: "hsl(0 84% 60%)" },
+        { name: "Collected", value: totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0, color: "hsl(142 76% 36%)", amount: paidAmount },
+        { name: "Pending", value: totalAmount > 0 ? Math.round((pendingAmount / totalAmount) * 100) : 0, color: "hsl(38 92% 50%)", amount: pendingAmount },
+        { name: "Overdue", value: totalAmount > 0 ? Math.round((overdueAmount / totalAmount) * 100) : 0, color: "hsl(0 84% 60%)", amount: overdueAmount },
       ];
+    },
+  });
+}
+
+export function useTotalIncome() {
+  return useQuery({
+    queryKey: ["total-income"],
+    queryFn: async () => {
+      const [feeResult, salaryResult] = await Promise.all([
+        supabase.from("fee_installments").select("amount, status"),
+        supabase.from("salary_payments").select("amount"),
+      ]);
+
+      const feeCollected = feeResult.data?.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0) || 0;
+      const feePending = feeResult.data?.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0) || 0;
+      const salaryPaid = salaryResult.data?.reduce((s, i) => s + Number(i.amount), 0) || 0;
+
+      return { feeCollected, feePending, salaryPaid, netIncome: feeCollected - salaryPaid };
     },
   });
 }
