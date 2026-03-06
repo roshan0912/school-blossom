@@ -42,7 +42,7 @@ export function useDashboardStats() {
       const totalTeachers = teachersResult.count || 0;
       const totalClasses = classesResult.count || 0;
 
-      // Calculate fees collected
+      // Calculate fees collected from fee_installments (paid)
       const feesCollected = paymentsResult.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
       // Calculate pending salaries

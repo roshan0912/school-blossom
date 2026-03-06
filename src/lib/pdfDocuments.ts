@@ -688,7 +688,7 @@ export function generateDailyAttendancePDF(data: DailyAttendanceReportData): voi
 
   autoTable(doc, {
     startY: 75,
-    head: [["#", "Name", data.type === "students" ? "Roll No" : "ID", "Class/Subject", "Status"]],
+    head: [["#", "Name", data.type === "students" ? "Roll No" : "Staff ID", data.type === "students" ? "Class" : "Designation", "Status"]],
     body: tableData,
     theme: "grid",
     headStyles: {
