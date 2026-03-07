@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles, useUpdateUserRole, useDeleteUserRole } from "@/hooks/useUserRoles";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useDashboardStats, useTotalIncome } from "@/hooks/useDashboardStats";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatINR } from "@/lib/pdfGenerator";
