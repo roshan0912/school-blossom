@@ -83,7 +83,19 @@ export function useUpdateFeeInstallment() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["fee_installments"] }); toast.success("Installment updated"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["fee_installments"] }); qc.invalidateQueries({ queryKey: ["fee-stats"] }); qc.invalidateQueries({ queryKey: ["total-income"] }); qc.invalidateQueries({ queryKey: ["dashboard-stats"] }); toast.success("Installment updated"); },
+    onError: (e) => toast.error("Failed: " + e.message),
+  });
+}
+
+export function useDeleteFeeInstallment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("fee_installments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["fee_installments"] }); qc.invalidateQueries({ queryKey: ["fee-stats"] }); qc.invalidateQueries({ queryKey: ["total-income"] }); qc.invalidateQueries({ queryKey: ["dashboard-stats"] }); toast.success("Installment deleted"); },
     onError: (e) => toast.error("Failed: " + e.message),
   });
 }

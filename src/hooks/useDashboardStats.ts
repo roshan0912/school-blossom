@@ -32,7 +32,7 @@ export function useDashboardStats() {
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("teachers").select("id", { count: "exact", head: true }),
         supabase.from("classes").select("id", { count: "exact", head: true }),
-        supabase.from("payments").select("amount"),
+        supabase.from("fee_installments").select("amount, status").eq("status", "paid"),
         supabase.from("teachers").select("salary").eq("salary_status", "pending"),
         supabase.from("student_attendance").select("status").eq("date", today),
         supabase.from("teacher_attendance").select("status").eq("date", today),
