@@ -224,12 +224,12 @@ export default function AdminPanel() {
         {/* System Overview */}
         <TabsContent value="overview" className="space-y-6">
           {/* Financial Summary */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Fees Collected</p>
-                  <p className="text-2xl font-bold mt-1 text-success">{formatINR(stats?.feesCollected || 0)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Fee Collected</p>
+                  <p className="text-2xl font-bold mt-1 text-success">{formatINR(incomeData?.feeCollected || 0)}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-success/10 text-success">
                   <IndianRupee className="h-6 w-6" />
@@ -239,8 +239,8 @@ export default function AdminPanel() {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Pending Salaries</p>
-                  <p className="text-2xl font-bold mt-1 text-warning">{formatINR(stats?.pendingSalaries || 0)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Fee Pending</p>
+                  <p className="text-2xl font-bold mt-1 text-warning">{formatINR(incomeData?.feePending || 0)}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-warning/10 text-warning">
                   <IndianRupee className="h-6 w-6" />
@@ -250,11 +250,22 @@ export default function AdminPanel() {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold mt-1">{userRoles?.length || 0}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Salary Paid</p>
+                  <p className="text-2xl font-bold mt-1 text-destructive">{formatINR(incomeData?.salaryPaid || 0)}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-destructive/10 text-destructive">
+                  <IndianRupee className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Net Income</p>
+                  <p className="text-2xl font-bold mt-1 text-primary">{formatINR(incomeData?.netIncome || 0)}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                  <Users className="h-6 w-6" />
+                  <IndianRupee className="h-6 w-6" />
                 </div>
               </div>
             </Card>
