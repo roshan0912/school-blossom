@@ -4,7 +4,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { Users, GraduationCap, Calendar, IndianRupee, BookOpen, TrendingUp, AlertCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useDashboardStats, useTotalIncome } from "@/hooks/useDashboardStats";
 import { formatINR } from "@/lib/pdfGenerator";
 import { QuickActionDropdown } from "@/components/QuickActionDropdown";
 import { Button } from "@/components/ui/button";
