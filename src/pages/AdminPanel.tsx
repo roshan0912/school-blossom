@@ -96,6 +96,7 @@ export default function AdminPanel() {
   const updateRole = useUpdateUserRole();
   const deleteRole = useDeleteUserRole();
   const { data: stats } = useDashboardStats();
+  const { data: incomeData } = useTotalIncome();
   const { data: overview } = useSystemOverview();
   const { data: activityLogs } = useActivityLogs();
 
