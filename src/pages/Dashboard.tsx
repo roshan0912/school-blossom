@@ -4,7 +4,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { Users, GraduationCap, Calendar, IndianRupee, BookOpen, TrendingUp, AlertCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useDashboardStats, useTotalIncome } from "@/hooks/useDashboardStats";
 import { formatINR } from "@/lib/pdfGenerator";
 import { QuickActionDropdown } from "@/components/QuickActionDropdown";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading } = useDashboardStats();
+  const { data: incomeData } = useTotalIncome();
   const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
@@ -69,9 +70,9 @@ export default function Dashboard() {
         />
         <StatCard
           title="Fees Collected"
-          value={isLoading ? "..." : formatINR(stats?.feesCollected || 0)}
-          change={stats?.feesCollected ? "Total collected" : "No payments yet"}
-          changeType={stats?.feesCollected ? "positive" : "neutral"}
+          value={isLoading ? "..." : formatINR(incomeData?.feeCollected || 0)}
+          change={incomeData?.feePending ? `${formatINR(incomeData.feePending)} pending` : "No payments yet"}
+          changeType={incomeData?.feeCollected ? "positive" : "neutral"}
           icon={IndianRupee}
           gradient="info"
           delay={240}
