@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFeeStructures, useCreateFeeStructure, useDeleteFeeStructure, useFeeInstallments, useCreateFeeInstallment, useUpdateFeeInstallment } from "@/hooks/useFees";
+import { useFeeStructures, useCreateFeeStructure, useDeleteFeeStructure, useFeeInstallments, useCreateFeeInstallment, useUpdateFeeInstallment, useDeleteFeeInstallment } from "@/hooks/useFees";
 import { useClasses } from "@/hooks/useClasses";
 import { useStudents } from "@/hooks/useStudents";
-import { IndianRupee, Plus, Trash2, CheckCircle2, Receipt, FileText, Download, TrendingUp } from "lucide-react";
+import { IndianRupee, Plus, Trash2, CheckCircle2, Receipt, FileText, Download, TrendingUp, Pencil } from "lucide-react";
 import { formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
@@ -29,13 +29,30 @@ export default function FeeManagement() {
   const deleteStructure = useDeleteFeeStructure();
   const createInstallment = useCreateFeeInstallment();
   const updateInstallment = useUpdateFeeInstallment();
+  const deleteInstallment = useDeleteFeeInstallment();
   const [structureDialog, setStructureDialog] = useState(false);
   const [installmentDialog, setInstallmentDialog] = useState(false);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editForm, setEditForm] = useState({ id: "", amount: "", due_date: "", status: "pending" });
+  const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [sForm, setSForm] = useState({ name: "", fee_type: "tuition", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: "" });
   const [iForm, setIForm] = useState({ student_id: "", fee_structure_id: "", amount: "", due_date: "" });
 
   const totalCollected = installments?.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0) || 0;
   const totalPending = installments?.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0) || 0;
+
+  // Filter installments by selected student
+  const filteredInstallments = selectedStudent
+    ? installments?.filter(i => i.student_id === selectedStudent)
+    : installments;
+
+  // Student-wise summary
+  const studentSummary = students?.map(s => {
+    const studentInstallments = installments?.filter(i => i.student_id === s.id) || [];
+    const paid = studentInstallments.filter(i => i.status === "paid").reduce((sum, i) => sum + Number(i.amount), 0);
+    const pending = studentInstallments.filter(i => i.status !== "paid").reduce((sum, i) => sum + Number(i.amount), 0);
+    return { ...s, totalFees: paid + pending, paid, pending, installmentCount: studentInstallments.length };
+  }) || [];
 
   const handleCreateStructure = () => {
     if (!sForm.name || !sForm.amount) { toast.error("Fill required fields"); return; }
@@ -57,6 +74,17 @@ export default function FeeManagement() {
 
   const markPaid = (id: string) => {
     updateInstallment.mutate({ id, status: "paid", paid_date: new Date().toISOString().split("T")[0], receipt_number: `REC-${Date.now().toString(36).toUpperCase()}` });
+  };
+
+  const openEditDialog = (inst: any) => {
+    setEditForm({ id: inst.id, amount: String(inst.amount), due_date: inst.due_date, status: inst.status });
+    setEditDialog(true);
+  };
+
+  const handleEditInstallment = () => {
+    if (!editForm.amount || !editForm.due_date) { toast.error("Fill all fields"); return; }
+    updateInstallment.mutate({ id: editForm.id, amount: Number(editForm.amount), due_date: editForm.due_date, status: editForm.status });
+    setEditDialog(false);
   };
 
   const downloadFeeReport = (period: "weekly" | "monthly" | "all") => {
@@ -126,6 +154,18 @@ export default function FeeManagement() {
     )},
   ];
 
+  const studentFeeColumns = [
+    { key: "name", label: "Student Name", render: (i: any) => <span className="font-medium">{i.name}</span> },
+    { key: "roll_no", label: "Roll No", render: (i: any) => i.roll_no || "—" },
+    { key: "totalFees", label: "Total Fees", render: (i: any) => <span className="font-semibold">{formatINR(i.totalFees)}</span> },
+    { key: "paid", label: "Paid", render: (i: any) => <span className="text-success font-medium">{formatINR(i.paid)}</span> },
+    { key: "pending", label: "Pending", render: (i: any) => <span className="text-warning font-medium">{formatINR(i.pending)}</span> },
+    { key: "installmentCount", label: "Installments", render: (i: any) => i.installmentCount },
+    { key: "actions", label: "Actions", render: (i: any) => (
+      <Button variant="outline" size="sm" onClick={() => setSelectedStudent(i.id)}>View Details</Button>
+    )},
+  ];
+
   const installmentColumns = [
     { key: "student", label: "Student", render: (i: any) => <span className="font-medium">{i.students?.name || "—"}</span> },
     { key: "fee", label: "Fee Type", render: (i: any) => i.fee_structures?.name || "—" },
@@ -140,23 +180,36 @@ export default function FeeManagement() {
     { key: "actions", label: "Actions", render: (i: any) => (
       <div className="flex gap-1">
         {i.status !== "paid" ? (
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
-            <CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid
-          </Button>
+          <>
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
+              <CheckCircle2 className="h-3.5 w-3.5" /> Pay
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(i)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteInstallment.mutate(i.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
         ) : (
-          <Button variant="ghost" size="sm" className="gap-1" onClick={() => {
-            generateFeeReceiptPDF({
-              receiptNo: i.receipt_number || `REC-${i.id.slice(0, 8).toUpperCase()}`,
-              studentName: i.students?.name || "—", rollNo: i.students?.roll_no || "—",
-              className: "—", fatherName: "—",
-              paymentDate: i.paid_date ? format(new Date(i.paid_date), "dd MMM yyyy") : new Date().toLocaleDateString("en-IN"),
-              items: [{ description: i.fee_structures?.name || "Fee", amount: Number(i.amount) }],
-              totalAmount: Number(i.amount), paymentMode: "Cash",
-            });
-            toast.success("Receipt generated!");
-          }}>
-            <FileText className="h-3.5 w-3.5" /> Receipt
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => {
+              generateFeeReceiptPDF({
+                receiptNo: i.receipt_number || `REC-${i.id.slice(0, 8).toUpperCase()}`,
+                studentName: i.students?.name || "—", rollNo: i.students?.roll_no || "—",
+                className: "—", fatherName: "—",
+                paymentDate: i.paid_date ? format(new Date(i.paid_date), "dd MMM yyyy") : new Date().toLocaleDateString("en-IN"),
+                items: [{ description: i.fee_structures?.name || "Fee", amount: Number(i.amount) }],
+                totalAmount: Number(i.amount), paymentMode: "Cash",
+              });
+              toast.success("Receipt generated!");
+            }}>
+              <FileText className="h-3.5 w-3.5" /> Receipt
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteInstallment.mutate(i.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
         )}
       </div>
     )},
@@ -167,12 +220,12 @@ export default function FeeManagement() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">Fee Management</h1>
-          <p className="page-description">Fee structures, installments, and payment tracking</p>
+          <p className="page-description">Student-wise fee tracking, installments, and payment receipts</p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> Download Reports</Button>
+              <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> Reports</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => downloadFeeReport("weekly")}>Weekly Fee Report</DropdownMenuItem>
@@ -203,14 +256,31 @@ export default function FeeManagement() {
         </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="structures">
+      <Tabs defaultValue="students">
         <TabsList>
+          <TabsTrigger value="students">Student-wise Fees</TabsTrigger>
           <TabsTrigger value="structures">Fee Structures</TabsTrigger>
-          <TabsTrigger value="installments">Installments</TabsTrigger>
+          <TabsTrigger value="installments">All Installments</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="students" className="mt-4">
+          {selectedStudent ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={() => setSelectedStudent("")}>← Back to Students</Button>
+                <h3 className="text-lg font-semibold">{students?.find(s => s.id === selectedStudent)?.name} — Fee Details</h3>
+              </div>
+              <DataTable data={filteredInstallments || []} columns={installmentColumns} searchPlaceholder="Search installments..." onAdd={() => { setIForm({ ...iForm, student_id: selectedStudent }); setInstallmentDialog(true); }} addLabel="Add Installment" isLoading={iLoading} />
+            </div>
+          ) : (
+            <DataTable data={studentSummary} columns={studentFeeColumns} searchPlaceholder="Search students..." isLoading={iLoading} />
+          )}
+        </TabsContent>
+
         <TabsContent value="structures" className="mt-4">
           <DataTable data={structures || []} columns={structureColumns} searchPlaceholder="Search fee structures..." onAdd={() => setStructureDialog(true)} addLabel="Add Fee Structure" isLoading={sLoading} />
         </TabsContent>
+
         <TabsContent value="installments" className="mt-4">
           <DataTable data={installments || []} columns={installmentColumns} searchPlaceholder="Search installments..." onAdd={() => setInstallmentDialog(true)} addLabel="Add Installment" isLoading={iLoading} />
         </TabsContent>
@@ -286,6 +356,31 @@ export default function FeeManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setInstallmentDialog(false)}>Cancel</Button>
             <Button onClick={handleCreateInstallment} className="btn-gradient">Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Installment Dialog */}
+      <Dialog open={editDialog} onOpenChange={setEditDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Installment</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Amount (₹) *</Label><Input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} /></div>
+            <div><Label>Due Date *</Label><Input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} /></div>
+            <div><Label>Status</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog(false)}>Cancel</Button>
+            <Button onClick={handleEditInstallment} className="btn-gradient">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
