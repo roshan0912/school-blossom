@@ -70,9 +70,9 @@ export default function Dashboard() {
         />
         <StatCard
           title="Fees Collected"
-          value={isLoading ? "..." : formatINR(stats?.feesCollected || 0)}
-          change={stats?.feesCollected ? "Total collected" : "No payments yet"}
-          changeType={stats?.feesCollected ? "positive" : "neutral"}
+          value={isLoading ? "..." : formatINR(incomeData?.feeCollected || 0)}
+          change={incomeData?.feePending ? `${formatINR(incomeData.feePending)} pending` : "No payments yet"}
+          changeType={incomeData?.feeCollected ? "positive" : "neutral"}
           icon={IndianRupee}
           gradient="info"
           delay={240}
