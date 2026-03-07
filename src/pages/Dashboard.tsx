@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading } = useDashboardStats();
+  const { data: incomeData } = useTotalIncome();
   const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
