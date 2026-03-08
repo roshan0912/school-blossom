@@ -19,7 +19,7 @@ import { StudentDetailsDialog } from "@/components/ViewDetailsDialogs";
 import { StudentFormDialog } from "@/components/StudentFormDialog";
 import { SendMessageDialog } from "@/components/SendMessageDialog";
 import type { Database } from "@/integrations/supabase/types";
-import { generateStudentIdCardPDF, generateCertificatePDF } from "@/lib/pdfDocuments";
+import { generateStudentIdCardPDF, generateCertificatePDF, generatePickupPassPDF } from "@/lib/pdfDocuments";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
 type StudentInsert = Database["public"]["Tables"]["students"]["Insert"];
