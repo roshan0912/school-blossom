@@ -25,20 +25,32 @@ export default function AiAssistant() {
     setIsLoading(true);
     setResponse("");
 
-    const contextPrompt = `You are an AI assistant for Vedanta Valley Public School ERP system. Here is the current school data:
+    const contextPrompt = `You are an AI assistant for Vedanta Valley Public School ERP system. Here is the current real-time school data:
+
+ENROLLMENT:
 - Total Students: ${stats?.totalStudents || 0}
 - Total Teachers: ${stats?.totalTeachers || 0}
 - Total Classes: ${stats?.totalClasses || 0}
-- Fee Collected: ₹${incomeData?.feeCollected || 0}
-- Fee Pending: ₹${incomeData?.feePending || 0}
-- Salary Paid: ₹${incomeData?.salaryPaid || 0}
-- Net Income: ₹${incomeData?.netIncome || 0}
+
+FINANCIAL DATA:
+- Total Fee Collected: ₹${incomeData?.feeCollected || 0}
+- Total Fee Pending: ₹${incomeData?.feePending || 0}
+- Total Salary Paid: ₹${incomeData?.salaryPaid || 0}
+- Net Income (Collected - Salary): ₹${incomeData?.netIncome || 0}
+- Fee Collection Rate: ${incomeData && (incomeData.feeCollected + incomeData.feePending) > 0 ? ((incomeData.feeCollected / (incomeData.feeCollected + incomeData.feePending)) * 100).toFixed(1) : 0}%
+
+INSTALLMENTS:
 - Paid Installments: ${paidCount}
 - Pending Installments: ${pendingCount}
+- Pending Salary Teachers: ${stats?.pendingSalaries ? `₹${stats.pendingSalaries}` : "₹0"}
+
+ATTENDANCE (Today):
 - Student Attendance Rate: ${stats?.studentAttendanceRate?.toFixed(1) || 0}%
 - Teacher Attendance Rate: ${stats?.teacherAttendanceRate?.toFixed(1) || 0}%
+- Students Present Today: ${stats?.todayStudentAttendance || 0}
+- Teachers Present Today: ${stats?.todayTeacherAttendance || 0}
 
-Based on this data, provide actionable suggestions to improve school economy and operations. Be specific with numbers and percentages. Answer in a professional yet friendly tone. Keep answers concise.
+Based on this data, provide actionable suggestions to improve school economy and operations. Be specific with numbers and percentages. Answer in a professional yet friendly tone. Keep answers concise and structured with bullet points.
 
 User Question: ${query}`;
 
