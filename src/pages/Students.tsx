@@ -313,6 +313,22 @@ export default function Students() {
             }}>
               <Award className="h-4 w-4" /> Generate Certificate
             </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2" onClick={async () => {
+              toast.info("Generating Pickup Pass...");
+              await generatePickupPassPDF({
+                passNo: `VVPS/PP/${item.roll_no || item.id.slice(0, 6).toUpperCase()}`,
+                studentName: item.name,
+                className: item.classes?.name || "—",
+                rollNo: item.roll_no || "—",
+                parentGuardian: item.parent_name || item.guardian_name || "—",
+                mobile: item.phone || "—",
+                authorizedPerson: item.parent_name || item.guardian_name || "—",
+                photoUrl: item.photo_url,
+              });
+              toast.success("Pickup Pass generated!");
+            }}>
+              <ShieldCheck className="h-4 w-4" /> Generate Pickup Pass
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(item.id)}>
               <Trash2 className="h-4 w-4" /> Delete
