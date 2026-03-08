@@ -3,14 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CalendarIcon, CheckCircle2, XCircle, Clock, Users, Loader2, Download } from "lucide-react";
-import { format } from "date-fns";
-import { generateDailyAttendancePDF } from "@/lib/pdfDocuments";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from "date-fns";
+import { generateDailyAttendancePDF, generateWeeklyAttendancePDF, generateMonthlyAttendancePDF } from "@/lib/pdfDocuments";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useStudents } from "@/hooks/useStudents";
 import { useTeachers } from "@/hooks/useTeachers";
 import { useStudentAttendance, useBulkMarkAttendance, useTeacherAttendance, useMarkTeacherAttendance } from "@/hooks/useAttendance";
+import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type AttendanceStatus = Database["public"]["Enums"]["attendance_status"];
@@ -57,19 +59,15 @@ export default function Attendance() {
     const statusOrder: AttendanceStatus[] = ["present", "late", "absent"];
     const currentIndex = statusOrder.indexOf(currentStatus);
     const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
-    
     setAttendanceMap((prev) => ({ ...prev, [id]: nextStatus }));
   };
 
   const markAllPresent = () => {
-    const ids = activeTab === "students" 
+    const ids = activeTab === "students"
       ? students?.map((s) => s.id) || []
       : teachers?.map((t) => t.id) || [];
-    
     const newMap: Record<string, AttendanceStatus> = {};
-    ids.forEach((id) => {
-      newMap[id] = "present";
-    });
+    ids.forEach((id) => { newMap[id] = "present"; });
     setAttendanceMap(newMap);
   };
 
@@ -96,17 +94,116 @@ export default function Attendance() {
   const getStats = () => {
     const items = activeTab === "students" ? students : teachers;
     const getStatus = activeTab === "students" ? getStudentAttendanceStatus : getTeacherAttendanceStatus;
-    
     if (!items) return { present: 0, absent: 0, late: 0 };
-    
     return items.reduce(
-      (acc, item) => {
-        const status = getStatus(item.id);
-        acc[status]++;
-        return acc;
-      },
+      (acc, item) => { const status = getStatus(item.id); acc[status]++; return acc; },
       { present: 0, absent: 0, late: 0 }
     );
+  };
+
+  const downloadDailyPDF = () => {
+    const items = activeTab === "students" ? students : teachers;
+    const getStatus = activeTab === "students" ? getStudentAttendanceStatus : getTeacherAttendanceStatus;
+    if (!items || items.length === 0) { toast.error("No data to download"); return; }
+    const entries = items.map((item) => ({
+      name: item.name,
+      rollNo: activeTab === "students" ? ((item as any).roll_no || "") : ((item as any).teacher_id || ""),
+      className: activeTab === "students" ? ((item as any).classes?.name || "") : ((item as any).subject || ""),
+      status: getStatus(item.id),
+    }));
+    generateDailyAttendancePDF({
+      date: format(date, "dd-MM-yyyy"),
+      type: activeTab as "students" | "teachers",
+      entries,
+      stats: getStats(),
+    });
+    toast.success("Daily attendance PDF downloaded");
+  };
+
+  const downloadWeeklyPDF = async () => {
+    const type = activeTab as "students" | "teachers";
+    const table = type === "students" ? "student_attendance" : "teacher_attendance";
+    const idField = type === "students" ? "student_id" : "teacher_id";
+    const items = type === "students" ? students : teachers;
+
+    if (!items || items.length === 0) { toast.error("No data"); return; }
+
+    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+    // Only Mon-Fri
+    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd }).filter(d => !isWeekend(d));
+
+    const dailyEntries = [];
+    for (const day of weekDays) {
+      const dateStr = format(day, "yyyy-MM-dd");
+      const { data: records } = await supabase.from(table).select("*").eq("date", dateStr);
+
+      const entries = items.map(item => {
+        const record = records?.find((r: any) => r[idField] === item.id);
+        return {
+          name: item.name,
+          rollNo: type === "students" ? ((item as any).roll_no || "") : ((item as any).teacher_id || ""),
+          className: type === "students" ? ((item as any).classes?.name || "") : ((item as any).subject || ""),
+          status: (record?.status || "absent") as "present" | "absent" | "late",
+        };
+      });
+
+      const stats = entries.reduce((acc, e) => { acc[e.status]++; return acc; }, { present: 0, absent: 0, late: 0 });
+      dailyEntries.push({ date: format(day, "dd-MM-yyyy"), dayName: format(day, "EEEE"), entries, stats });
+    }
+
+    generateWeeklyAttendancePDF({
+      type,
+      weekRange: `${format(weekStart, "dd MMM")} - ${format(weekEnd, "dd MMM yyyy")}`,
+      dailyEntries,
+    });
+    toast.success("Weekly attendance PDF downloaded");
+  };
+
+  const downloadMonthlyPDF = async () => {
+    const type = activeTab as "students" | "teachers";
+    const table = type === "students" ? "student_attendance" : "teacher_attendance";
+    const idField = type === "students" ? "student_id" : "teacher_id";
+    const items = type === "students" ? students : teachers;
+
+    if (!items || items.length === 0) { toast.error("No data"); return; }
+
+    const monthStart = startOfMonth(date);
+    const monthEnd = endOfMonth(date);
+    const workingDays = eachDayOfInterval({ start: monthStart, end: monthEnd }).filter(d => !isWeekend(d));
+
+    // Fetch all attendance for the month
+    const { data: allRecords } = await supabase
+      .from(table)
+      .select("*")
+      .gte("date", format(monthStart, "yyyy-MM-dd"))
+      .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+    const entries = items.map(item => {
+      const itemRecords = allRecords?.filter((r: any) => r[idField] === item.id) || [];
+      const presentDays = itemRecords.filter((r: any) => r.status === "present").length;
+      const lateDays = itemRecords.filter((r: any) => r.status === "late").length;
+      const absentDays = workingDays.length - presentDays - lateDays;
+      const rate = workingDays.length > 0 ? (((presentDays + lateDays) / workingDays.length) * 100).toFixed(1) + "%" : "0%";
+
+      return {
+        name: item.name,
+        rollNo: type === "students" ? ((item as any).roll_no || "") : ((item as any).teacher_id || ""),
+        className: type === "students" ? ((item as any).classes?.name || "") : ((item as any).subject || ""),
+        totalDays: workingDays.length,
+        presentDays,
+        lateDays,
+        absentDays: Math.max(0, absentDays),
+        rate,
+      };
+    });
+
+    generateMonthlyAttendancePDF({
+      type,
+      monthYear: format(date, "MMMM yyyy"),
+      entries,
+    });
+    toast.success("Monthly attendance PDF downloaded");
   };
 
   const stats = getStats();
@@ -116,7 +213,7 @@ export default function Attendance() {
     <div className="space-y-6">
       <div className="page-header">
         <h1 className="page-title">Attendance</h1>
-        <p className="page-description">Track daily attendance for students and teachers</p>
+        <p className="page-description">Track daily attendance for students and teachers (Mon-Fri)</p>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -128,46 +225,26 @@ export default function Attendance() {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(d) => d && setDate(d)}
-              initialFocus
-            />
+            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
           </PopoverContent>
         </Popover>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={markAllPresent}>
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Mark All Present
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Mark All Present
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline"><Download className="h-4 w-4 mr-2" /> Download</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={downloadDailyPDF}>Daily Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadWeeklyPDF}>Weekly Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadMonthlyPDF}>Monthly Report</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
-            variant="outline"
-            onClick={() => {
-              const items = activeTab === "students" ? students : teachers;
-              const getStatus = activeTab === "students" ? getStudentAttendanceStatus : getTeacherAttendanceStatus;
-              if (!items || items.length === 0) { toast.error("No data to download"); return; }
-              const entries = items.map((item) => ({
-                name: item.name,
-                rollNo: activeTab === "students" ? ((item as any).roll_no || "") : ((item as any).teacher_id || ""),
-                className: activeTab === "students" ? ((item as any).classes?.name || "") : ((item as any).subject || "Teacher"),
-                status: getStatus(item.id),
-              }));
-              generateDailyAttendancePDF({
-                date: format(date, "dd-MM-yyyy"),
-                type: activeTab as "students" | "teachers",
-                entries,
-                stats,
-              });
-              toast.success("Attendance PDF downloaded");
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
-          </Button>
-          <Button 
-            className="btn-gradient" 
+            className="btn-gradient"
             onClick={saveAttendance}
             disabled={bulkMarkAttendance.isPending || markTeacherAttendance.isPending}
           >
@@ -208,38 +285,23 @@ export default function Attendance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="students" className="gap-2">
-            <Users className="h-4 w-4" />
-            Students
-          </TabsTrigger>
-          <TabsTrigger value="teachers" className="gap-2">
-            <Users className="h-4 w-4" />
-            Teachers
-          </TabsTrigger>
+          <TabsTrigger value="students" className="gap-2"><Users className="h-4 w-4" /> Students</TabsTrigger>
+          <TabsTrigger value="teachers" className="gap-2"><Users className="h-4 w-4" /> Teachers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
             <div className="glass-card overflow-hidden">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
                 {(students || []).map((student, index) => {
                   const status = getStudentAttendanceStatus(student.id);
                   const StatusIcon = statusIcons[status];
-                  
                   return (
-                    <button
-                      key={student.id}
-                      onClick={() => toggleStatus(student.id, status)}
-                      className={cn(
-                        "p-4 rounded-xl border-2 transition-all duration-200 text-left animate-fade-in",
-                        statusColors[status]
-                      )}
-                      style={{ animationDelay: `${index * 30}ms` }}
-                    >
+                    <button key={student.id} onClick={() => toggleStatus(student.id, status)}
+                      className={cn("p-4 rounded-xl border-2 transition-all duration-200 text-left animate-fade-in", statusColors[status])}
+                      style={{ animationDelay: `${index * 30}ms` }}>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center font-medium text-sm">
                           {student.name.split(" ").map((n) => n[0]).join("")}
@@ -255,9 +317,7 @@ export default function Attendance() {
                 })}
               </div>
               {(!students || students.length === 0) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  No students found. Add students first.
-                </div>
+                <div className="text-center py-12 text-muted-foreground">No students found. Add students first.</div>
               )}
             </div>
           )}
@@ -265,26 +325,17 @@ export default function Attendance() {
 
         <TabsContent value="teachers" className="mt-4">
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
             <div className="glass-card overflow-hidden">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
                 {(teachers || []).map((teacher, index) => {
                   const status = getTeacherAttendanceStatus(teacher.id);
                   const StatusIcon = statusIcons[status];
-                  
                   return (
-                    <button
-                      key={teacher.id}
-                      onClick={() => toggleStatus(teacher.id, status)}
-                      className={cn(
-                        "p-4 rounded-xl border-2 transition-all duration-200 text-left animate-fade-in",
-                        statusColors[status]
-                      )}
-                      style={{ animationDelay: `${index * 30}ms` }}
-                    >
+                    <button key={teacher.id} onClick={() => toggleStatus(teacher.id, status)}
+                      className={cn("p-4 rounded-xl border-2 transition-all duration-200 text-left animate-fade-in", statusColors[status])}
+                      style={{ animationDelay: `${index * 30}ms` }}>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center font-medium text-sm">
                           {teacher.name.split(" ").map((n) => n[0]).join("")}
@@ -300,9 +351,7 @@ export default function Attendance() {
                 })}
               </div>
               {(!teachers || teachers.length === 0) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  No teachers found. Add teachers first.
-                </div>
+                <div className="text-center py-12 text-muted-foreground">No teachers found. Add teachers first.</div>
               )}
             </div>
           )}

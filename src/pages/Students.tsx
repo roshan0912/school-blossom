@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award, ShieldCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ import { StudentDetailsDialog } from "@/components/ViewDetailsDialogs";
 import { StudentFormDialog } from "@/components/StudentFormDialog";
 import { SendMessageDialog } from "@/components/SendMessageDialog";
 import type { Database } from "@/integrations/supabase/types";
-import { generateStudentIdCardPDF, generateCertificatePDF } from "@/lib/pdfDocuments";
+import { generateStudentIdCardPDF, generateCertificatePDF, generatePickupPassPDF } from "@/lib/pdfDocuments";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
 type StudentInsert = Database["public"]["Tables"]["students"]["Insert"];
@@ -312,6 +312,22 @@ export default function Students() {
               toast.success("Certificate generated!");
             }}>
               <Award className="h-4 w-4" /> Generate Certificate
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2" onClick={async () => {
+              toast.info("Generating Pickup Pass...");
+              await generatePickupPassPDF({
+                passNo: `VVPS/PP/${item.roll_no || item.id.slice(0, 6).toUpperCase()}`,
+                studentName: item.name,
+                className: item.classes?.name || "—",
+                rollNo: item.roll_no || "—",
+                parentGuardian: item.parent_name || item.guardian_name || "—",
+                mobile: item.phone || "—",
+                authorizedPerson: item.parent_name || item.guardian_name || "—",
+                photoUrl: item.photo_url,
+              });
+              toast.success("Pickup Pass generated!");
+            }}>
+              <ShieldCheck className="h-4 w-4" /> Generate Pickup Pass
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(item.id)}>
