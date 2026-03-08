@@ -85,9 +85,23 @@ export function useWeeklyAttendance() {
       const today = new Date();
       const weekData = [];
 
-      for (let i = 6; i >= 0; i--) {
+      // Collect last 5 weekdays (Mon-Fri only)
+      let count = 0;
+      let daysBack = 0;
+      const dates: Date[] = [];
+      while (count < 5) {
         const date = new Date(today);
-        date.setDate(date.getDate() - i);
+        date.setDate(date.getDate() - daysBack);
+        const dayOfWeek = date.getDay(); // 0=Sun, 6=Sat
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+          dates.push(new Date(date));
+          count++;
+        }
+        daysBack++;
+      }
+      dates.reverse(); // oldest first
+
+      for (const date of dates) {
         const dateStr = date.toISOString().split("T")[0];
         const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
 
