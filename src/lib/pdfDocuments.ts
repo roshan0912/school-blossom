@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatINR, calculateGrade } from "./pdfGenerator";
+import QRCode from "qrcode";
 
 // ============== SCHOOL BRANDING CONSTANTS ==============
 const SCHOOL_NAME = "VEDANTA VALLEY PUBLIC SCHOOL";
