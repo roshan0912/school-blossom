@@ -36,6 +36,19 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
   }
 }
 
+// Helper to generate QR code as base64 data URL
+async function generateQRCodeBase64(text: string): Promise<string | null> {
+  try {
+    return await QRCode.toDataURL(text, {
+      width: 200,
+      margin: 1,
+      color: { dark: "#155724", light: "#ffffff" },
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ============== STUDENT ID CARD (Enhanced - matching reference) ==============
 interface StudentIdCardData {
   name: string;
