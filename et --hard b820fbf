@@ -1,0 +1,96 @@
+[33m3704f8d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m small updates
+[33mcc60969[m updated UI, fixed timetable, improved PDF generator
+[33mb820fbf[m Enhance ID cards and passes
+[33mdce199f[m Enhance cards with QR code
+[33m974901f[m Enhance id/pass with QR code
+[33m8d9ec03[m Enhance pickup pass with QR
+[33me6cb98d[m Enhance ID Card & Pass PDFs
+[33m19e3d07[m Enhance school modules and sync
+[33meddafc9[m Enhance school ERP features
+[33m394ba8d[m Enhance school ERP features
+[33m1ed8bdd[m Preceding changes
+[33m6adb5cd[m Preceding changes
+[33mbdf7972[m Enhance school ERP sync
+[33m774dbeb[m Sync data across pages
+[33m3f8eb71[m Sync salary and fees data across pages
+[33mf7e0b7c[m Preceding changes
+[33mc6c8dd1[m Preceding changes
+[33md2553ee[m Sync salary and fees data
+[33m6ed621f[m Preceding changes
+[33m3c5c841[m Preceding changes
+[33m1302f78[m Student-wise fee edits and receipts
+[33meb3de4e[m Student-fee edit and AI assist
+[33m5c2a319[m Integrate AI & reports features
+[33m9829722[m Unified fee reports and AI tools
+[33m2afd169[m Preceding changes
+[33m5309247[m Sync fees, reports, and cloud
+[33md23f148[m Unified payroll, reports, cloud data
+[33m40c8dd0[m Unified payroll, reports, cloud data
+[33me1e7fd9[m Preceding changes
+[33m98016dc[m Preceding changes
+[33m4d1ffb2[m Preceding changes
+[33m0c45686[m Changes
+[33m6ee9da8[m Work in progress
+[33m2eb30f9[m Add daily attendance PDF download
+[33me36a1d3[m Changes
+[33mc6a6360[m Sync attendance metrics and enhance payroll flexibility
+[33md9d4226[m Changes
+[33mba584cb[m Add Marksheet Generator UI
+[33m7e4ded7[m Changes
+[33m384ab14[m Embed photos in ID cards
+[33mb0de607[m Changes
+[33mfa675c0[m Premium PDF generators added
+[33m9f4d919[m Changes
+[33m5f6a95d[m Sync attendance graphs fixed
+[33mecb0205[m Changes
+[33m2d8f2de[m Fix teacher_id everywhere
+[33mae50db5[m Changes
+[33m0e5c898[m Export all student fields
+[33m055d9d5[m Changes
+[33m2607d2f[m Revamped payslip & UI polish
+[33m7a68484[m Changes
+[33m890918f[m Fix payslip to show exact salary
+[33m56a5a96[m Changes
+[33m978aa5b[m Dynamic ERP complete UI modules
+[33md7867c0[m Changes
+[33maa1c622[m Enhance timetable system
+[33mb814652[m Changes
+[33mf39e289[m Fix photo preview rendering
+[33m0691cef[m Changes
+[33mde97253[m Rebranded and added photos
+[33ma1126d1[m Changes
+[33m81e758d[m Enable Twilio SMS support
+[33ma3f718b[m Changes
+[33m5325300[m Fix RLS and update quick actions
+[33m91988d8[m Changes
+[33m959fac0[m Enhance messaging UI and forms
+[33mce26ff0[m Changes
+[33m778a7a0[m Update billing dates to 2026
+[33me432501[m Changes
+[33me46a0d6[m Fixed settings persistence and added cloud billing
+[33m57875aa[m Changes
+[33m5d6a1db[m Refine global search and cleanup
+[33m0009c9f[m Changes
+[33mf183216[m Enhance Settings functionality
+[33ma49d697[m Changes
+[33mee108c8[m Enhance View Details and exports
+[33m74ed09a[m Changes
+[33mc28ad74[m Make INR currency default
+[33m47871ec[m Changes
+[33mb34c6f4[m Lovable update
+[33m53ee60c[m Changes
+[33m503b6ef[m Update dashboard to INR & DB sync
+[33m64f9a7c[m Changes
+[33me49c222[m Add Exams Admin & RBAC
+[33mb644e76[m Changes
+[33m944f883[m Add exam results UI
+[33m26cd57d[m Changes
+[33m50b9881[m Improve auth + import features
+[33mfd7f1e6[m Changes
+[33me87c06d[m Lovable update
+[33m2992f58[m Changes
+[33m61c761d[m Lovable update
+[33m26de73f[m Changes
+[33m89d1858[m Improve dashboard UI modules
+[33mf3af02e[m Changes
+[33mb331aa1[m template: new_style_vite_react_shadcn_ts_testing_2026-01-08
