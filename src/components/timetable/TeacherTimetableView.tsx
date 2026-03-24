@@ -9,11 +9,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, Clock, BookOpen, User } from "lucide-react";
+import { Download, Clock, BookOpen, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTeachers } from "@/hooks/useTeachers";
 import { usePeriods } from "@/hooks/usePeriods";
 import { useTeacherTimetableEntries } from "@/hooks/useTimetable";
+import { TimetableExportDialog } from "./TimetableExportDialog";
+import {
+  buildTimetableRows,
+  exportTimetablePDF,
+  exportTimetableExcel,
+  exportTimetableWord,
+} from "@/lib/timetableExport";
 
 const DAYS = [
   { value: 0, label: "Monday", short: "Mon" },
@@ -35,6 +42,7 @@ export function TeacherTimetableView() {
   const { data: teachers } = useTeachers();
   const { data: periods } = usePeriods();
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
+  const [exportDialog, setExportDialog] = useState(false);
 
   const { data: entries } = useTeacherTimetableEntries(
     selectedTeacherId || null
@@ -105,9 +113,9 @@ export function TeacherTimetableView() {
         </Select>
 
         {selectedTeacherId && (
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="h-3 w-3 mr-1" />
-            Print
+          <Button variant="outline" size="sm" onClick={() => setExportDialog(true)}>
+            <Download className="h-3 w-3 mr-1" />
+            Export
           </Button>
         )}
       </div>
@@ -289,6 +297,25 @@ export function TeacherTimetableView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Export dialog */}
+      {exportDialog && (() => {
+        const selectedTeacher = teachers?.find((t) => t.id === selectedTeacherId);
+        const title = selectedTeacher?.name
+          ? `${selectedTeacher.name} – Teaching Schedule`
+          : "Teacher Timetable";
+        const subtitle = `School Blossom  •  Academic Year ${new Date().getFullYear()}-${(new Date().getFullYear() + 1).toString().slice(2)}`;
+        const rows = buildTimetableRows(periods || [], entryMap, "teacher");
+        return (
+          <TimetableExportDialog
+            open={exportDialog}
+            onClose={() => setExportDialog(false)}
+            onExportPDF={() => exportTimetablePDF(title, subtitle, rows)}
+            onExportExcel={() => exportTimetableExcel(title, subtitle, rows)}
+            onExportWord={() => exportTimetableWord(title, subtitle, rows)}
+          />
+        );
+      })()}
     </div>
   );
 }

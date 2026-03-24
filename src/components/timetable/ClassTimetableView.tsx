@@ -11,6 +11,13 @@ import {
   useDraggable,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { TimetableExportDialog } from "./TimetableExportDialog";
+import {
+  buildTimetableRows,
+  exportTimetablePDF,
+  exportTimetableExcel,
+  exportTimetableWord,
+} from "@/lib/timetableExport";
 import {
   Select,
   SelectContent,
@@ -31,7 +38,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   Copy,
-  Printer,
+  Download,
   Plus,
   CalendarDays,
   GripHorizontal,
@@ -178,6 +185,7 @@ export function ClassTimetableView() {
   });
   const [copyDialog, setCopyDialog] = useState(false);
   const [copyTargetId, setCopyTargetId] = useState("");
+  const [exportDialog, setExportDialog] = useState(false);
 
   const { data: entries } = useTimetableEntries(selectedClassId || null);
 
@@ -315,10 +323,10 @@ export function ClassTimetableView() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.print()}
+                onClick={() => setExportDialog(true)}
               >
-                <Printer className="h-3 w-3 mr-1" />
-                Print
+                <Download className="h-3 w-3 mr-1" />
+                Export
               </Button>
             </div>
           )}
@@ -487,6 +495,25 @@ export function ClassTimetableView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Export dialog */}
+      {exportDialog && (() => {
+        const selectedClass = classes?.find((c) => c.id === selectedClassId);
+        const title = selectedClass?.name
+          ? `${selectedClass.name} – Time Table`
+          : "Class Timetable";
+        const subtitle = `School Blossom  •  Academic Year ${new Date().getFullYear()}-${(new Date().getFullYear() + 1).toString().slice(2)}`;
+        const rows = buildTimetableRows(periods || [], entryMap, "class");
+        return (
+          <TimetableExportDialog
+            open={exportDialog}
+            onClose={() => setExportDialog(false)}
+            onExportPDF={() => exportTimetablePDF(title, subtitle, rows)}
+            onExportExcel={() => exportTimetableExcel(title, subtitle, rows)}
+            onExportWord={() => exportTimetableWord(title, subtitle, rows)}
+          />
+        );
+      })()}
     </DndContext>
   );
 }
