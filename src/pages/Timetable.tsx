@@ -1,9 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, Settings2, GraduationCap } from "lucide-react";
+import { CalendarDays, Settings2, GraduationCap, LayoutTemplate } from "lucide-react";
 import { PeriodManager } from "@/components/timetable/PeriodManager";
 import { SubjectManager } from "@/components/timetable/SubjectManager";
 import { ClassTimetableView } from "@/components/timetable/ClassTimetableView";
 import { TeacherTimetableView } from "@/components/timetable/TeacherTimetableView";
+import { TimetableGenerator } from "@/components/timetable/TimetableGenerator";
 
 export default function Timetable() {
   return (
@@ -16,18 +17,22 @@ export default function Timetable() {
       </div>
 
       <Tabs defaultValue="class-timetable" className="space-y-4">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="setup" className="gap-1.5">
             <Settings2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Setup</span>
           </TabsTrigger>
           <TabsTrigger value="class-timetable" className="gap-1.5">
             <CalendarDays className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Class Timetable</span>
+            <span className="hidden sm:inline">Class</span>
           </TabsTrigger>
           <TabsTrigger value="teacher-timetable" className="gap-1.5">
             <GraduationCap className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Teacher Timetable</span>
+            <span className="hidden sm:inline">Teacher</span>
+          </TabsTrigger>
+          <TabsTrigger value="generator" className="gap-1.5">
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Generator</span>
           </TabsTrigger>
         </TabsList>
 
@@ -44,6 +49,10 @@ export default function Timetable() {
 
         <TabsContent value="teacher-timetable">
           <TeacherTimetableView />
+        </TabsContent>
+
+        <TabsContent value="generator">
+          <TimetableGenerator />
         </TabsContent>
       </Tabs>
     </div>
