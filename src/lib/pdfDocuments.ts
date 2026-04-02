@@ -429,7 +429,7 @@ interface PickupPassData {
 export async function generatePickupPassPDF(data: PickupPassData): Promise<void> {
   const cardW = 240;
   const cardH = 152;
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [cardW, cardH] });
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: [cardW, cardH] });
 
   // ── FRONT SIDE (Cover) ──
   doc.setFillColor(...GREEN_DARK);
@@ -823,6 +823,120 @@ export function generateCertificatePDF(data: CertificateData): void {
   doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, 148.5, 193, { align: "center" });
 
   doc.save(`Certificate_${data.certificateType}_${data.studentName.replace(/\s+/g, "_")}.pdf`);
+}
+
+// ============== TRANSFER CERTIFICATE ==============
+export interface TransferCertificateData {
+  tcNo: string;
+  admissionNo: string;
+  studentName: string;
+  fatherName: string;
+  motherName: string;
+  nationality: string;
+  category: string;
+  dob: string;
+  dateOfAdmission: string;
+  classAdmitted: string;
+  classLeft: string;
+  reasonForLeaving: string;
+  dateOfApplication: string;
+  dateOfIssue: string;
+  conduct: string;
+}
+
+export function generateTransferCertificatePDF(data: TransferCertificateData): void {
+  const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
+  
+  // Header
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(0, 0, 210, 35, "F");
+
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text(SCHOOL_NAME, 105, 12, { align: "center" });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 105, 18, { align: "center" });
+  doc.text(SCHOOL_TRUST, 105, 24, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  // Highlight the TC Title
+  doc.setFillColor(...GOLD);
+  doc.rect(70, 29, 70, 8, "F");
+  doc.setTextColor(...BLACK);
+  doc.text("TRANSFER CERTIFICATE", 105, 35, { align: "center" });
+
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(1);
+  doc.line(10, 39, 200, 39);
+
+  doc.setTextColor(...BLACK);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`TC No: ${data.tcNo}`, 15, 48);
+  doc.text(`Admission No: ${data.admissionNo}`, 145, 48);
+
+  let y = 62;
+  const lh = 11;
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+
+  const drawPoint = (index: string, label: string, value: string) => {
+    doc.text(`${index}.`, 15, y);
+    doc.text(label, 25, y);
+    doc.text(":", 95, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(value || "—", 100, y);
+    doc.setFont("helvetica", "normal");
+    
+    // Light dotted line for value
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(100, y + 1, 195, y + 1);
+    doc.setLineDashPattern([], 0);
+    
+    y += lh;
+  };
+
+  drawPoint("1", "Name of Pupil", data.studentName);
+  drawPoint("2", "Father's/Guardian's Name", data.fatherName);
+  drawPoint("3", "Mother's Name", data.motherName);
+  drawPoint("4", "Nationality", data.nationality);
+  drawPoint("5", "Category (SC/ST/OBC/GEN)", data.category);
+  drawPoint("6", "Date of Birth", data.dob);
+  drawPoint("7", "Date of admission in School", data.dateOfAdmission);
+  drawPoint("8", "Class in which admitted", data.classAdmitted);
+  drawPoint("9", "Class in which pupil last studied", data.classLeft);
+  drawPoint("10", "Reason for leaving school", data.reasonForLeaving);
+  drawPoint("11", "General Conduct", data.conduct);
+  drawPoint("12", "Date of Application for Certificate", data.dateOfApplication);
+  drawPoint("13", "Date of Issue of Certificate", data.dateOfIssue);
+
+  // Footer / Signatures
+  y += 35;
+  doc.setFont("helvetica", "bold");
+  doc.text("Signature of", 20, y);
+  doc.text("Class Teacher", 18, y + 5);
+
+  doc.text("Checked By", 100, y + 5);
+
+  doc.text("Principal", 170, y);
+  doc.text("(Seal)", 172, y + 5);
+
+  // Bottom Border
+  doc.setDrawColor(...GREEN_DARK);
+  doc.setLineWidth(2);
+  doc.rect(5, 5, 200, 287, "S");
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.5);
+  doc.rect(7, 7, 196, 283, "S");
+
+  doc.save(`Transfer_Certificate_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
 
 // ============== FEE RECEIPT ==============
