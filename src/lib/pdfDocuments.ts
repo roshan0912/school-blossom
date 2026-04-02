@@ -427,9 +427,9 @@ interface PickupPassData {
 }
 
 export async function generatePickupPassPDF(data: PickupPassData): Promise<void> {
-  const cardW = 240;
-  const cardH = 152;
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: [cardW, cardH] });
+  const cardW = 86; // Standard CR80 ID Card width in mm
+  const cardH = 54; // Standard CR80 ID Card height in mm
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [cardW, cardH] });
 
   // ── FRONT SIDE (Cover) ──
   doc.setFillColor(...GREEN_DARK);
@@ -437,105 +437,105 @@ export async function generatePickupPassPDF(data: PickupPassData): Promise<void>
 
   // Gold double border
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1.5);
-  doc.rect(4, 4, cardW - 8, cardH - 8, "S");
-  doc.setLineWidth(0.5);
-  doc.rect(8, 8, cardW - 16, cardH - 16, "S");
+  doc.setLineWidth(0.6);
+  doc.rect(1.5, 1.5, cardW - 3, cardH - 3, "S");
+  doc.setLineWidth(0.2);
+  doc.rect(3, 3, cardW - 6, cardH - 6, "S");
 
   // School name
   doc.setTextColor(...WHITE);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(SCHOOL_NAME, cardW / 2, 30, { align: "center" });
-  doc.setFontSize(7);
+  doc.setFontSize(8);
+  doc.text(SCHOOL_NAME, cardW / 2, 13, { align: "center" });
+  doc.setFontSize(4);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, cardW / 2, 37, { align: "center" });
-  doc.setFontSize(6);
-  doc.text(SCHOOL_TRUST, cardW / 2, 43, { align: "center" });
+  doc.text(SCHOOL_TAGLINE, cardW / 2, 17, { align: "center" });
+  doc.setFontSize(3.5);
+  doc.text(SCHOOL_TRUST, cardW / 2, 20, { align: "center" });
 
   // Gold separator
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1);
-  doc.line(50, 54, cardW - 50, 54);
+  doc.setLineWidth(0.4);
+  doc.line(15, 23, cardW - 15, 23);
 
   // Title
   doc.setTextColor(...GOLD);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("STUDENT PICK UP PASS", cardW / 2, 72, { align: "center" });
-  doc.setFontSize(9);
-  doc.text("(PARENT GATE PASS)", cardW / 2, 80, { align: "center" });
+  doc.setFontSize(7);
+  doc.text("STUDENT PICK UP PASS", cardW / 2, 31, { align: "center" });
+  doc.setFontSize(5);
+  doc.text("(PARENT GATE PASS)", cardW / 2, 35, { align: "center" });
 
   // Gold separator
-  doc.line(50, 88, cardW - 50, 88);
+  doc.line(15, 41, cardW - 15, 41);
 
   // Footer info
   doc.setTextColor(...WHITE);
-  doc.setFontSize(6);
+  doc.setFontSize(3.5);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_ADDRESS, cardW / 2, cardH - 22, { align: "center" });
-  doc.text(`${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, cardW / 2, cardH - 16, { align: "center" });
+  doc.text(SCHOOL_ADDRESS, cardW / 2, cardH - 7, { align: "center" });
+  doc.text(`${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, cardW / 2, cardH - 4, { align: "center" });
 
   // ── BACK SIDE (Student Pass with details) ──
   doc.addPage([cardW, cardH], "landscape");
 
   // Green header
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(0, 0, cardW, 26, "F");
+  doc.rect(0, 0, cardW, 10, "F");
   doc.setTextColor(...WHITE);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text(SCHOOL_NAME, cardW / 2, 10, { align: "center" });
   doc.setFontSize(6.5);
+  doc.text(SCHOOL_NAME, cardW / 2, 4, { align: "center" });
+  doc.setFontSize(3.5);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, cardW / 2, 16, { align: "center" });
-  doc.setFontSize(9);
+  doc.text(SCHOOL_TAGLINE, cardW / 2, 6.5, { align: "center" });
+  doc.setFontSize(4);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...GOLD);
-  doc.text("Student Pass", cardW / 2, 23, { align: "center" });
+  doc.text("Student Pass", cardW / 2, 8.5, { align: "center" });
 
   // Gold line under header
   doc.setFillColor(...GOLD);
-  doc.rect(0, 26, cardW, 1.2, "F");
+  doc.rect(0, 10, cardW, 0.5, "F");
 
   // Photo box (left)
-  const photoX = 10;
-  const photoY = 32;
-  const photoW = 38;
-  const photoH = 46;
+  const photoX = 3;
+  const photoY = 13;
+  const photoW = 15;
+  const photoH = 19;
   doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.2);
   doc.rect(photoX, photoY, photoW, photoH, "S");
 
   if (data.photoUrl) {
     try {
       const imgData = await loadImageAsBase64(data.photoUrl);
       if (imgData) {
-        doc.addImage(imgData, "JPEG", photoX + 0.5, photoY + 0.5, photoW - 1, photoH - 1);
+        doc.addImage(imgData, "JPEG", photoX + 0.2, photoY + 0.2, photoW - 0.4, photoH - 0.4);
       }
     } catch {
       doc.setTextColor(...GRAY);
-      doc.setFontSize(8);
+      doc.setFontSize(4);
       doc.text("PHOTO", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
     }
   } else {
     doc.setTextColor(...GRAY);
-    doc.setFontSize(8);
+    doc.setFontSize(4);
     doc.text("PHOTO", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
   }
 
   // Details table (center)
-  const tableX = 55;
-  const tableW = 108;
-  const rowH = 6.5;
+  const tableX = 20;
+  const tableW = 46;
+  const rowH = 2.8;
   const details: [string, string][] = [
     ["Pass No:", data.passNo],
     ["Student Name:", data.studentName],
     ["Class / Section:", data.className],
     ["Roll No:", data.rollNo],
-    ["Parent / Guardian:", data.parentGuardian],
+    ["Parent / Guard.:", data.parentGuardian],
     ["Mobile:", data.mobile],
-    ["Authorized Person:", data.authorizedPerson],
+    ["Auth. Person:", data.authorizedPerson],
   ];
 
   doc.setTextColor(...BLACK);
@@ -546,19 +546,20 @@ export async function generatePickupPassPDF(data: PickupPassData): Promise<void>
       doc.rect(tableX, yPos, tableW, rowH, "F");
     }
     doc.setDrawColor(190, 190, 190);
+    doc.setLineWidth(0.1);
     doc.rect(tableX, yPos, tableW, rowH, "S");
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(label, tableX + 2, yPos + 4.5);
+    doc.setFontSize(3.8);
+    doc.text(label, tableX + 1, yPos + 2);
     doc.setFont("helvetica", "normal");
-    doc.text(value || "—", tableX + 42, yPos + 4.5);
+    doc.text(value || "—", tableX + 16, yPos + 2);
   });
 
   // QR Code (right side)
-  const qrX = 170;
+  const qrX = 68;
   const qrY = photoY;
-  const qrSize = 28;
+  const qrSize = 13;
   const qrData = `VVPS-PICKUP|${data.passNo}|${data.studentName}|${data.className}|${data.parentGuardian}|${data.mobile}`;
   const qrBase64 = await generateQRCodeBase64(qrData);
   
@@ -566,54 +567,51 @@ export async function generatePickupPassPDF(data: PickupPassData): Promise<void>
     doc.addImage(qrBase64, "PNG", qrX, qrY, qrSize, qrSize);
   } else {
     doc.setDrawColor(...BLACK);
-    doc.setLineWidth(0.3);
+    doc.setLineWidth(0.1);
     doc.rect(qrX, qrY, qrSize, qrSize, "S");
-    doc.setFontSize(5);
+    doc.setFontSize(3.5);
     doc.setTextColor(...GRAY);
     doc.text("QR CODE", qrX + qrSize / 2, qrY + qrSize / 2, { align: "center" });
   }
 
   // Gate Rules below the table
-  const rulesY = photoY + details.length * rowH + 5;
+  const rulesY = photoY + details.length * rowH + 2;
   doc.setTextColor(...BLACK);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("Gate Rules:", 10, rulesY);
+  doc.setFontSize(4);
+  doc.text("Gate Rules:", 3, rulesY);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
+  doc.setFontSize(3.5);
   const rules = [
-    "• Show this pass at the school gate during student pick-up.",
-    "• Only the authorized parent/guardian can collect the student.",
-    "• If the pass is lost, inform the school office immediately.",
-    "• The school may verify ID at the gate.",
-    "• Unauthorized persons will not be allowed to collect students.",
+    "• Show this pass at the gate during pick-up. Only auth. parent/guardian can collect.",
+    "• If lost, inform school immediately. Unauthorized persons not allowed."
   ];
   rules.forEach((rule, i) => {
-    doc.text(rule, 12, rulesY + 4 + i * 4);
+    doc.text(rule, 3, rulesY + 2 + i * 2);
   });
 
   // Signature areas
-  const sigY = rulesY + 4 + rules.length * 4 + 4;
+  const sigY = rulesY + 8;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(5.5);
-  doc.text("Authorized Signature & School Seal", 10, sigY);
+  doc.setFontSize(3.5);
+  doc.text("Auth. Sign & Seal", 3, sigY);
   doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.3);
-  doc.line(10, sigY + 8, 55, sigY + 8);
+  doc.setLineWidth(0.1);
+  doc.line(3, sigY + 4, 25, sigY + 4);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5);
-  doc.text("Principal / Director", 18, sigY + 11);
+  doc.setFontSize(3.2);
+  doc.text("Principal / Director", 6, sigY + 6);
 
-  doc.line(130, sigY + 8, 175, sigY + 8);
-  doc.text("Parent / Guardian", 138, sigY + 11);
+  doc.line(60, sigY + 4, 82, sigY + 4);
+  doc.text("Parent / Guardian", 63, sigY + 6);
 
   // Green footer
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(0, cardH - 10, cardW, 10, "F");
+  doc.rect(0, cardH - 4.5, cardW, 4.5, "F");
   doc.setTextColor(...WHITE);
-  doc.setFontSize(5);
-  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, cardW / 2, cardH - 4, { align: "center" });
+  doc.setFontSize(3);
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, cardW / 2, cardH - 1.5, { align: "center" });
 
   doc.save(`Pickup_Pass_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
@@ -847,94 +845,92 @@ export interface TransferCertificateData {
 export function generateTransferCertificatePDF(data: TransferCertificateData): void {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
   
-  // Header
+  // Double lined outer border
+  doc.setDrawColor(...GREEN_DARK);
+  doc.setLineWidth(1.5);
+  doc.rect(8, 8, 194, 281, "S");
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.5);
+  doc.rect(10, 10, 190, 277, "S");
+
+  // Header background
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(0, 0, 210, 35, "F");
+  doc.rect(10, 10, 190, 36, "F");
 
   doc.setTextColor(...WHITE);
-  doc.setFontSize(22);
+  doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
-  doc.text(SCHOOL_NAME, 105, 12, { align: "center" });
+  doc.text(SCHOOL_NAME, 105, 20, { align: "center" });
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, 105, 18, { align: "center" });
-  doc.text(SCHOOL_TRUST, 105, 24, { align: "center" });
-
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  // Highlight the TC Title
-  doc.setFillColor(...GOLD);
-  doc.rect(70, 29, 70, 8, "F");
-  doc.setTextColor(...BLACK);
-  doc.text("TRANSFER CERTIFICATE", 105, 35, { align: "center" });
-
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1);
-  doc.line(10, 39, 200, 39);
+  doc.text(SCHOOL_TAGLINE, 105, 26, { align: "center" });
+  doc.text(SCHOOL_TRUST, 105, 31, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 105, 36, { align: "center" });
 
   doc.setTextColor(...BLACK);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text(`TC No: ${data.tcNo}`, 15, 48);
-  doc.text(`Admission No: ${data.admissionNo}`, 145, 48);
-
-  let y = 62;
-  const lh = 11;
   
-  doc.setFont("helvetica", "normal");
+  // Title with simple underlines
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("TRANSFER CERTIFICATE", 105, 58, { align: "center" });
+  doc.setDrawColor(...BLACK);
+  doc.setLineWidth(0.5);
+  doc.line(65, 60, 145, 60);
+
+  // Numbers
   doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`TC No.: ${data.tcNo}`, 15, 70);
+  doc.text(`Admission No.: ${data.admissionNo}`, 145, 70);
 
-  const drawPoint = (index: string, label: string, value: string) => {
-    doc.text(`${index}.`, 15, y);
-    doc.text(label, 25, y);
-    doc.text(":", 95, y);
-    doc.setFont("helvetica", "bold");
-    doc.text(value || "—", 100, y);
-    doc.setFont("helvetica", "normal");
-    
-    // Light dotted line for value
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(100, y + 1, 195, y + 1);
-    doc.setLineDashPattern([], 0);
-    
-    y += lh;
-  };
+  const tcDetails = [
+    ["1.", "Name of Pupil", ":", data.studentName],
+    ["2.", "Father's / Guardian's Name", ":", data.fatherName],
+    ["3.", "Mother's Name", ":", data.motherName],
+    ["4.", "Nationality", ":", data.nationality],
+    ["5.", "Category (SC/ST/OBC/GEN)", ":", data.category],
+    ["6.", "Date of Birth (in Christian Era)", ":", data.dob],
+    ["7.", "Date of first admission in the School", ":", data.dateOfAdmission],
+    ["8.", "Class in which admitted", ":", data.classAdmitted],
+    ["9.", "Class in which pupil last studied", ":", data.classLeft],
+    ["10.", "Reason for leaving the school", ":", data.reasonForLeaving],
+    ["11.", "General Conduct", ":", data.conduct],
+    ["12.", "Date of application for certificate", ":", data.dateOfApplication],
+    ["13.", "Date of issue of certificate", ":", data.dateOfIssue]
+  ];
 
-  drawPoint("1", "Name of Pupil", data.studentName);
-  drawPoint("2", "Father's/Guardian's Name", data.fatherName);
-  drawPoint("3", "Mother's Name", data.motherName);
-  drawPoint("4", "Nationality", data.nationality);
-  drawPoint("5", "Category (SC/ST/OBC/GEN)", data.category);
-  drawPoint("6", "Date of Birth", data.dob);
-  drawPoint("7", "Date of admission in School", data.dateOfAdmission);
-  drawPoint("8", "Class in which admitted", data.classAdmitted);
-  drawPoint("9", "Class in which pupil last studied", data.classLeft);
-  drawPoint("10", "Reason for leaving school", data.reasonForLeaving);
-  drawPoint("11", "General Conduct", data.conduct);
-  drawPoint("12", "Date of Application for Certificate", data.dateOfApplication);
-  drawPoint("13", "Date of Issue of Certificate", data.dateOfIssue);
+  autoTable(doc, {
+    startY: 85,
+    body: tcDetails,
+    theme: "plain",
+    styles: { 
+      fontSize: 12, 
+      font: "helvetica", 
+      textColor: BLACK,
+      cellPadding: 3.5, // proper padding to give row heights
+    },
+    columnStyles: {
+      0: { cellWidth: 10, fontStyle: "normal" },      // index
+      1: { cellWidth: 75, fontStyle: "normal" },      // label
+      2: { cellWidth: 5, fontStyle: "bold" },         // colon
+      3: { cellWidth: 85, fontStyle: "bold" }         // value
+    },
+    margin: { left: 15, right: 15 },
+  });
 
   // Footer / Signatures
-  y += 35;
+  const startY = (doc as any).lastAutoTable.finalY + 40;
+  
   doc.setFont("helvetica", "bold");
-  doc.text("Signature of", 20, y);
-  doc.text("Class Teacher", 18, y + 5);
+  doc.setFontSize(11);
+  doc.text("Signature of", 25, startY);
+  doc.text("Class Teacher", 24, startY + 6);
 
-  doc.text("Checked By", 100, y + 5);
+  doc.text("Checked By", 98, startY + 6);
 
-  doc.text("Principal", 170, y);
-  doc.text("(Seal)", 172, y + 5);
-
-  // Bottom Border
-  doc.setDrawColor(...GREEN_DARK);
-  doc.setLineWidth(2);
-  doc.rect(5, 5, 200, 287, "S");
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.5);
-  doc.rect(7, 7, 196, 283, "S");
+  doc.text("Principal", 168, startY);
+  doc.text("(Seal)", 171, startY + 6);
 
   doc.save(`Transfer_Certificate_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
