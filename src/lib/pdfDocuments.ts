@@ -367,191 +367,125 @@ interface PickupPassData {
 }
 
 export async function generatePickupPassPDF(data: PickupPassData): Promise<void> {
-  const cardW = 86; // Standard CR80 ID Card width in mm
-  const cardH = 54; // Standard CR80 ID Card height in mm
+  const cardW = 86;
+  const cardH = 54;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [cardW, cardH] });
+  const logo = await getSchoolLogo();
 
   // ── FRONT SIDE (Cover) ──
   doc.setFillColor(...GREEN_DARK);
   doc.rect(0, 0, cardW, cardH, "F");
-
-  // Gold double border
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.6);
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
   doc.rect(1.5, 1.5, cardW - 3, cardH - 3, "S");
   doc.setLineWidth(0.2);
-  doc.rect(3, 3, cardW - 6, cardH - 6, "S");
+  doc.rect(2.5, 2.5, cardW - 5, cardH - 5, "S");
 
-  // School name
-  doc.setTextColor(...WHITE);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text(SCHOOL_NAME, cardW / 2, 13, { align: "center" });
+  // Logo centered on front
+  if (logo) doc.addImage(logo, "JPEG", cardW / 2 - 8, 6, 16, 16);
+
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(6.5);
+  doc.text(SCHOOL_NAME, cardW / 2, 26, { align: "center" });
+  doc.setFontSize(3.5); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, cardW / 2, 29.5, { align: "center" });
+
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.3);
+  doc.line(12, 32, cardW - 12, 32);
+
+  doc.setTextColor(...GOLD); doc.setFont("helvetica", "bold"); doc.setFontSize(6);
+  doc.text("STUDENT PICK UP PASS", cardW / 2, 37, { align: "center" });
   doc.setFontSize(4);
-  doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, cardW / 2, 17, { align: "center" });
-  doc.setFontSize(3.5);
-  doc.text(SCHOOL_TRUST, cardW / 2, 20, { align: "center" });
+  doc.text("(PARENT GATE PASS)", cardW / 2, 40.5, { align: "center" });
 
-  // Gold separator
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.4);
-  doc.line(15, 23, cardW - 15, 23);
+  doc.line(12, 43, cardW - 12, 43);
 
-  // Title
-  doc.setTextColor(...GOLD);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("STUDENT PICK UP PASS", cardW / 2, 31, { align: "center" });
-  doc.setFontSize(5);
-  doc.text("(PARENT GATE PASS)", cardW / 2, 35, { align: "center" });
+  doc.setTextColor(...WHITE); doc.setFontSize(3); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_ADDRESS, cardW / 2, cardH - 5, { align: "center" });
+  doc.text(SCHOOL_EMAIL, cardW / 2, cardH - 2.5, { align: "center" });
 
-  // Gold separator
-  doc.line(15, 41, cardW - 15, 41);
-
-  // Footer info
-  doc.setTextColor(...WHITE);
-  doc.setFontSize(3.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_ADDRESS, cardW / 2, cardH - 7, { align: "center" });
-  doc.text(`${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, cardW / 2, cardH - 4, { align: "center" });
-
-  // ── BACK SIDE (Student Pass with details) ──
+  // ── BACK SIDE (Details) ──
   doc.addPage([cardW, cardH], "landscape");
 
-  // Green header
-  doc.setFillColor(...GREEN_DARK);
-  doc.rect(0, 0, cardW, 10, "F");
-  doc.setTextColor(...WHITE);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.5);
-  doc.text(SCHOOL_NAME, cardW / 2, 4, { align: "center" });
-  doc.setFontSize(3.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, cardW / 2, 6.5, { align: "center" });
-  doc.setFontSize(4);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...GOLD);
-  doc.text("Student Pass", cardW / 2, 8.5, { align: "center" });
+  // Green header bar
+  doc.setFillColor(...GREEN_DARK); doc.rect(0, 0, cardW, 9, "F");
+  if (logo) doc.addImage(logo, "JPEG", 1.5, 1.5, 6, 6);
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(5.5);
+  doc.text(SCHOOL_NAME, cardW / 2 + 2, 4, { align: "center" });
+  doc.setFontSize(3); doc.setFont("helvetica", "normal");
+  doc.text("Student Pick Up Pass", cardW / 2 + 2, 7, { align: "center" });
 
-  // Gold line under header
-  doc.setFillColor(...GOLD);
-  doc.rect(0, 10, cardW, 0.5, "F");
+  doc.setFillColor(...GOLD); doc.rect(0, 9, cardW, 0.4, "F");
 
-  // Photo box (left)
-  const photoX = 3;
-  const photoY = 13;
-  const photoW = 15;
-  const photoH = 19;
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.2);
-  doc.rect(photoX, photoY, photoW, photoH, "S");
-
+  // Photo (left)
+  const photoX = 2.5; const photoY = 11.5; const pW = 13; const pH = 16;
+  doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.2);
+  doc.rect(photoX, photoY, pW, pH, "S");
   if (data.photoUrl) {
     try {
       const imgData = await loadImageAsBase64(data.photoUrl);
-      if (imgData) {
-        doc.addImage(imgData, "JPEG", photoX + 0.2, photoY + 0.2, photoW - 0.4, photoH - 0.4);
-      }
+      if (imgData) doc.addImage(imgData, "JPEG", photoX + 0.2, photoY + 0.2, pW - 0.4, pH - 0.4);
     } catch {
-      doc.setTextColor(...GRAY);
-      doc.setFontSize(4);
-      doc.text("PHOTO", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
+      doc.setFontSize(3.5); doc.setTextColor(...GRAY);
+      doc.text("PHOTO", photoX + pW / 2, photoY + pH / 2, { align: "center" });
     }
   } else {
-    doc.setTextColor(...GRAY);
-    doc.setFontSize(4);
-    doc.text("PHOTO", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
+    doc.setFontSize(3.5); doc.setTextColor(...GRAY);
+    doc.text("PHOTO", photoX + pW / 2, photoY + pH / 2, { align: "center" });
   }
 
-  // Details table (center)
-  const tableX = 20;
-  const tableW = 46;
-  const rowH = 2.8;
+  // Details table
+  const tX = 17; const tW = 48; const rH = 2.7;
   const details: [string, string][] = [
     ["Pass No:", data.passNo],
-    ["Student Name:", data.studentName],
-    ["Class / Section:", data.className],
+    ["Student:", data.studentName],
+    ["Class:", data.className],
     ["Roll No:", data.rollNo],
-    ["Parent / Guard.:", data.parentGuardian],
+    ["Parent:", data.parentGuardian],
     ["Mobile:", data.mobile],
     ["Auth. Person:", data.authorizedPerson],
   ];
 
   doc.setTextColor(...BLACK);
   details.forEach(([label, value], i) => {
-    const yPos = photoY + i * rowH;
-    if (i % 2 === 0) {
-      doc.setFillColor(235, 235, 235);
-      doc.rect(tableX, yPos, tableW, rowH, "F");
-    }
-    doc.setDrawColor(190, 190, 190);
-    doc.setLineWidth(0.1);
-    doc.rect(tableX, yPos, tableW, rowH, "S");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(3.8);
-    doc.text(label, tableX + 1, yPos + 2);
-    doc.setFont("helvetica", "normal");
-    doc.text(value || "—", tableX + 16, yPos + 2);
+    const yPos = photoY + i * rH;
+    if (i % 2 === 0) { doc.setFillColor(240, 248, 240); doc.rect(tX, yPos, tW, rH, "F"); }
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.08);
+    doc.rect(tX, yPos, tW, rH, "S");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(3.5);
+    doc.text(label, tX + 0.8, yPos + 1.8);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(3.5);
+    doc.text((value || "—").substring(0, 28), tX + 14, yPos + 1.8);
   });
 
-  // QR Code (right side)
-  const qrX = 68;
-  const qrY = photoY;
-  const qrSize = 13;
+  // QR Code (right)
+  const qrX = 67; const qrY = photoY; const qrSize = 12;
   const qrData = `VVPS-PICKUP|${data.passNo}|${data.studentName}|${data.className}|${data.parentGuardian}|${data.mobile}`;
   const qrBase64 = await generateQRCodeBase64(qrData);
-  
   if (qrBase64) {
     doc.addImage(qrBase64, "PNG", qrX, qrY, qrSize, qrSize);
   } else {
-    doc.setDrawColor(...BLACK);
-    doc.setLineWidth(0.1);
+    doc.setDrawColor(...GRAY); doc.setLineWidth(0.1);
     doc.rect(qrX, qrY, qrSize, qrSize, "S");
-    doc.setFontSize(3.5);
-    doc.setTextColor(...GRAY);
-    doc.text("QR CODE", qrX + qrSize / 2, qrY + qrSize / 2, { align: "center" });
+    doc.setFontSize(3); doc.setTextColor(...GRAY);
+    doc.text("QR", qrX + qrSize / 2, qrY + qrSize / 2, { align: "center" });
   }
 
-  // Gate Rules below the table
-  const rulesY = photoY + details.length * rowH + 2;
-  doc.setTextColor(...BLACK);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(4);
-  doc.text("Gate Rules:", 3, rulesY);
+  // Gate rule
+  const rulesY = photoY + details.length * rH + 1.5;
+  doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(3.2);
+  doc.text("Show this pass at gate. Only authorized person may collect student.", 2.5, rulesY);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(3.5);
-  const rules = [
-    "• Show this pass at the gate during pick-up. Only auth. parent/guardian can collect.",
-    "• If lost, inform school immediately. Unauthorized persons not allowed."
-  ];
-  rules.forEach((rule, i) => {
-    doc.text(rule, 3, rulesY + 2 + i * 2);
-  });
-
-  // Signature areas
-  const sigY = rulesY + 8;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(3.5);
-  doc.text("Auth. Sign & Seal", 3, sigY);
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.1);
-  doc.line(3, sigY + 4, 25, sigY + 4);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(3.2);
-  doc.text("Principal / Director", 6, sigY + 6);
-
-  doc.line(60, sigY + 4, 82, sigY + 4);
-  doc.text("Parent / Guardian", 63, sigY + 6);
+  // Signatures
+  doc.setDrawColor(...BLACK); doc.setLineWidth(0.08);
+  doc.line(2.5, cardH - 7, 22, cardH - 7);
+  doc.line(60, cardH - 7, 82, cardH - 7);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(2.8); doc.setTextColor(...BLACK);
+  doc.text("Principal / Director", 5, cardH - 5);
+  doc.text("Parent / Guardian", 63, cardH - 5);
 
   // Green footer
-  doc.setFillColor(...GREEN_DARK);
-  doc.rect(0, cardH - 4.5, cardW, 4.5, "F");
-  doc.setTextColor(...WHITE);
-  doc.setFontSize(3);
-  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, cardW / 2, cardH - 1.5, { align: "center" });
+  doc.setFillColor(...GREEN_DARK); doc.rect(0, cardH - 3.5, cardW, 3.5, "F");
+  doc.setTextColor(...WHITE); doc.setFontSize(2.8);
+  doc.text(`${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, cardW / 2, cardH - 1, { align: "center" });
 
   doc.save(`Pickup_Pass_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
