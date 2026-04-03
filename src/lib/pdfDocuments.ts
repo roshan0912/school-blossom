@@ -11,7 +11,9 @@ const SCHOOL_REG = "Registration No: 2025/4/IV/1917";
 const SCHOOL_ADDRESS = "Barua Para, Near Paharpur More, Jalpaiguri – 735121";
 const SCHOOL_PHONE = "+91-95474 59325, +91 81677 03616";
 const SCHOOL_EMAIL = "vedantavalleyschool@gmail.com";
+const SCHOOL_LOGO_PATH = "/images/school-logo.jpg";
 
+const NAVY: [number, number, number] = [25, 25, 80];
 const GREEN_DARK: [number, number, number] = [21, 87, 36];
 const GREEN_MID: [number, number, number] = [34, 139, 34];
 const GOLD: [number, number, number] = [184, 157, 60];
@@ -19,6 +21,14 @@ const WHITE: [number, number, number] = [255, 255, 255];
 const BLACK: [number, number, number] = [0, 0, 0];
 const GRAY: [number, number, number] = [128, 128, 128];
 const LIGHT_GREEN: [number, number, number] = [240, 248, 240];
+
+// Cache school logo base64
+let cachedLogo: string | null = null;
+async function getSchoolLogo(): Promise<string | null> {
+  if (cachedLogo) return cachedLogo;
+  cachedLogo = await loadImageAsBase64(SCHOOL_LOGO_PATH);
+  return cachedLogo;
+}
 
 // Helper to load image from URL as base64
 async function loadImageAsBase64(url: string): Promise<string | null> {
