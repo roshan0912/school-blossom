@@ -329,29 +329,6 @@ export default function Students() {
             }}>
               <ShieldCheck className="h-4 w-4" /> Generate Pickup Pass
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2" onClick={() => {
-              toast.info("Generating Transfer Certificate...");
-              generateTransferCertificatePDF({
-                tcNo: `TC/${new Date().getFullYear()}/${item.roll_no || item.id.slice(0, 4).toUpperCase()}`,
-                admissionNo: item.admission_no || "—",
-                studentName: item.name,
-                fatherName: item.parent_name || item.guardian_name || "—",
-                motherName: item.mother_name || "—",
-                nationality: item.nationality || "Indian",
-                category: item.category || "General",
-                dob: item.date_of_birth || "—",
-                dateOfAdmission: item.admission_date || "—",
-                classAdmitted: item.classes?.name || "—",
-                classLeft: item.classes?.name || "—",
-                reasonForLeaving: "Parent's Request",
-                dateOfApplication: new Date().toLocaleDateString("en-IN"),
-                dateOfIssue: new Date().toLocaleDateString("en-IN"),
-                conduct: "Good"
-              });
-              toast.success("Transfer Certificate generated!");
-            }}>
-              <FileText className="h-4 w-4" /> Generate TC
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(item.id)}>
               <Trash2 className="h-4 w-4" /> Delete
