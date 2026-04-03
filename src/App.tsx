@@ -30,6 +30,7 @@ import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import AiAssistant from "./pages/AiAssistant";
 import NotFound from "./pages/NotFound";
+import TCGenerator from "./pages/TCGenerator";
 
 const queryClient = new QueryClient();
 
