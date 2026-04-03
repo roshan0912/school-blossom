@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award, ShieldCheck, FileText } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award, ShieldCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
