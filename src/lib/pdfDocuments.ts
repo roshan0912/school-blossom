@@ -716,48 +716,47 @@ export interface TransferCertificateData {
   conduct: string;
 }
 
-export function generateTransferCertificatePDF(data: TransferCertificateData): void {
+export async function generateTransferCertificatePDF(data: TransferCertificateData): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
-  
-  // Double lined outer border
-  doc.setDrawColor(...GREEN_DARK);
-  doc.setLineWidth(1.5);
-  doc.rect(8, 8, 194, 281, "S");
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.5);
-  doc.rect(10, 10, 190, 277, "S");
+  const logo = await getSchoolLogo();
 
-  // Header background
+  // Elegant double border
+  doc.setDrawColor(...NAVY); doc.setLineWidth(2);
+  doc.rect(6, 6, 198, 285, "S");
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.6);
+  doc.rect(9, 9, 192, 279, "S");
+
+  // Header with logo
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(10, 10, 190, 36, "F");
+  doc.rect(9, 9, 192, 40, "F");
 
-  doc.setTextColor(...WHITE);
-  doc.setFontSize(24);
-  doc.setFont("helvetica", "bold");
-  doc.text(SCHOOL_NAME, 105, 20, { align: "center" });
+  if (logo) doc.addImage(logo, "JPEG", 14, 12, 32, 32);
 
-  doc.setFontSize(8);
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  doc.text(SCHOOL_NAME, 115, 21, { align: "center" });
+  doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 115, 27, { align: "center" });
+  doc.setFontSize(6.5);
+  doc.text(SCHOOL_TRUST, 115, 32, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 115, 37, { align: "center" });
+  doc.text(SCHOOL_EMAIL, 115, 42, { align: "center" });
+
+  // Gold accent bar
+  doc.setFillColor(...GOLD); doc.rect(9, 49, 192, 2, "F");
+
+  // Title
+  doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
+  doc.text("TRANSFER CERTIFICATE", 105, 62, { align: "center" });
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.6);
+  doc.line(55, 65, 155, 65);
+
+  // TC & Admission numbers
+  doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+  doc.text(`TC No.: ${data.tcNo}`, 14, 75);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, 105, 26, { align: "center" });
-  doc.text(SCHOOL_TRUST, 105, 31, { align: "center" });
-  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 105, 36, { align: "center" });
+  doc.text(`Admission No.: ${data.admissionNo}`, 140, 75);
 
-  doc.setTextColor(...BLACK);
-  
-  // Title with simple underlines
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("TRANSFER CERTIFICATE", 105, 58, { align: "center" });
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.5);
-  doc.line(65, 60, 145, 60);
-
-  // Numbers
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(`TC No.: ${data.tcNo}`, 15, 70);
-  doc.text(`Admission No.: ${data.admissionNo}`, 145, 70);
-
+  // Details table
   const tcDetails = [
     ["1.", "Name of Pupil", ":", data.studentName],
     ["2.", "Father's / Guardian's Name", ":", data.fatherName],
@@ -765,7 +764,7 @@ export function generateTransferCertificatePDF(data: TransferCertificateData): v
     ["4.", "Nationality", ":", data.nationality],
     ["5.", "Category (SC/ST/OBC/GEN)", ":", data.category],
     ["6.", "Date of Birth (in Christian Era)", ":", data.dob],
-    ["7.", "Date of first admission in the School", ":", data.dateOfAdmission],
+    ["7.", "Date of first admission in School", ":", data.dateOfAdmission],
     ["8.", "Class in which admitted", ":", data.classAdmitted],
     ["9.", "Class in which pupil last studied", ":", data.classLeft],
     ["10.", "Reason for leaving the school", ":", data.reasonForLeaving],
@@ -775,36 +774,45 @@ export function generateTransferCertificatePDF(data: TransferCertificateData): v
   ];
 
   autoTable(doc, {
-    startY: 85,
+    startY: 82,
     body: tcDetails,
     theme: "plain",
-    styles: { 
-      fontSize: 12, 
-      font: "helvetica", 
-      textColor: BLACK,
-      cellPadding: 3.5, // proper padding to give row heights
-    },
+    styles: { fontSize: 11, font: "helvetica", textColor: BLACK, cellPadding: 3 },
     columnStyles: {
-      0: { cellWidth: 10, fontStyle: "normal" },      // index
-      1: { cellWidth: 75, fontStyle: "normal" },      // label
-      2: { cellWidth: 5, fontStyle: "bold" },         // colon
-      3: { cellWidth: 85, fontStyle: "bold" }         // value
+      0: { cellWidth: 10, fontStyle: "normal" },
+      1: { cellWidth: 72, fontStyle: "normal" },
+      2: { cellWidth: 5, fontStyle: "bold" },
+      3: { cellWidth: 88, fontStyle: "bold" }
     },
-    margin: { left: 15, right: 15 },
+    margin: { left: 14, right: 14 },
+    didDrawCell: (hookData) => {
+      if (hookData.section === "body") {
+        const y = hookData.cell.y + hookData.cell.height;
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
+        doc.line(14, y, 196, y);
+      }
+    }
   });
 
-  // Footer / Signatures
-  const startY = (doc as any).lastAutoTable.finalY + 40;
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("Signature of", 25, startY);
-  doc.text("Class Teacher", 24, startY + 6);
+  // Signatures - fixed position to ensure one page
+  const sigY = 240;
+  doc.setDrawColor(...BLACK); doc.setLineWidth(0.3);
+  doc.line(18, sigY, 58, sigY);
+  doc.line(82, sigY, 125, sigY);
+  doc.line(150, sigY, 195, sigY);
 
-  doc.text("Checked By", 98, startY + 6);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...BLACK);
+  doc.text("Signature of", 28, sigY + 5, { align: "center" });
+  doc.text("Class Teacher", 28, sigY + 10, { align: "center" });
+  doc.text("Checked By", 103, sigY + 5, { align: "center" });
+  doc.text("Principal", 172, sigY + 5, { align: "center" });
+  doc.text("(Seal)", 172, sigY + 10, { align: "center" });
 
-  doc.text("Principal", 168, startY);
-  doc.text("(Seal)", 171, startY + 6);
+  // Footer
+  doc.setFillColor(...GREEN_DARK); doc.rect(9, 275, 192, 13, "F");
+  doc.setTextColor(...WHITE); doc.setFontSize(7); doc.setFont("helvetica", "normal");
+  doc.text("This is a computer-generated Transfer Certificate.", 105, 281, { align: "center" });
+  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")}`, 105, 285, { align: "center" });
 
   doc.save(`Transfer_Certificate_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
