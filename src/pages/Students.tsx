@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award, ShieldCheck, FileText } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Loader2, MessageSquare, Mail, Users, CreditCard, Award, ShieldCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ import { StudentDetailsDialog } from "@/components/ViewDetailsDialogs";
 import { StudentFormDialog } from "@/components/StudentFormDialog";
 import { SendMessageDialog } from "@/components/SendMessageDialog";
 import type { Database } from "@/integrations/supabase/types";
-import { generateStudentIdCardPDF, generateCertificatePDF, generatePickupPassPDF, generateTransferCertificatePDF } from "@/lib/pdfDocuments";
+import { generateStudentIdCardPDF, generateCertificatePDF, generatePickupPassPDF } from "@/lib/pdfDocuments";
 
 type FeeStatus = Database["public"]["Enums"]["fee_status"];
 type StudentInsert = Database["public"]["Tables"]["students"]["Insert"];
@@ -328,29 +328,6 @@ export default function Students() {
               toast.success("Pickup Pass generated!");
             }}>
               <ShieldCheck className="h-4 w-4" /> Generate Pickup Pass
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2" onClick={() => {
-              toast.info("Generating Transfer Certificate...");
-              generateTransferCertificatePDF({
-                tcNo: `TC/${new Date().getFullYear()}/${item.roll_no || item.id.slice(0, 4).toUpperCase()}`,
-                admissionNo: item.admission_no || "—",
-                studentName: item.name,
-                fatherName: item.parent_name || item.guardian_name || "—",
-                motherName: item.mother_name || "—",
-                nationality: item.nationality || "Indian",
-                category: item.category || "General",
-                dob: item.date_of_birth || "—",
-                dateOfAdmission: item.admission_date || "—",
-                classAdmitted: item.classes?.name || "—",
-                classLeft: item.classes?.name || "—",
-                reasonForLeaving: "Parent's Request",
-                dateOfApplication: new Date().toLocaleDateString("en-IN"),
-                dateOfIssue: new Date().toLocaleDateString("en-IN"),
-                conduct: "Good"
-              });
-              toast.success("Transfer Certificate generated!");
-            }}>
-              <FileText className="h-4 w-4" /> Generate TC
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(item.id)}>

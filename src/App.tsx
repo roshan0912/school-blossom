@@ -30,6 +30,7 @@ import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import AiAssistant from "./pages/AiAssistant";
 import NotFound from "./pages/NotFound";
+import TCGenerator from "./pages/TCGenerator";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/ai-assistant" element={<AiAssistant />} />
+              <Route path="/tc-generator" element={<TCGenerator />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
