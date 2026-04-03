@@ -73,6 +73,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/ai-assistant" element={<AiAssistant />} />
+              <Route path="/tc-generator" element={<TCGenerator />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
