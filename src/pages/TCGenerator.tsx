@@ -62,12 +62,13 @@ export default function TCGenerator() {
     setTcData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!tcData.studentName) {
       toast.error("Please fill in the student name");
       return;
     }
-    generateTransferCertificatePDF(tcData);
+    toast.info("Generating Transfer Certificate...");
+    await generateTransferCertificatePDF(tcData);
     toast.success("Transfer Certificate PDF generated!");
   };
 
