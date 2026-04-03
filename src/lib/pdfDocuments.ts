@@ -73,184 +73,160 @@ interface StudentIdCardData {
 }
 
 export async function generateStudentIdCardPDF(data: StudentIdCardData): Promise<void> {
-  // Use a larger format for better text clarity, then it prints at ID card size
   const cardW = 240;
   const cardH = 152;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [cardW, cardH] });
+  const logo = await getSchoolLogo();
 
   // ── FRONT SIDE ──
-  // Outer gold border
+  // Navy top & bottom bands
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, cardW, 5, "F");
+  doc.rect(0, cardH - 5, cardW, 5, "F");
+
+  // Gold border
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1.5);
-  doc.rect(2, 2, cardW - 4, cardH - 4, "S");
+  doc.setLineWidth(1.2);
+  doc.rect(3, 3, cardW - 6, cardH - 6, "S");
 
   // Green header band
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(4, 4, cardW - 8, 38, "F");
+  doc.rect(5, 5, cardW - 10, 32, "F");
 
-  // School name in header
+  // Logo in header (left)
+  if (logo) {
+    doc.addImage(logo, "JPEG", 8, 7, 28, 28);
+  }
+
+  // School name in header (centered)
   doc.setTextColor(...WHITE);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(SCHOOL_NAME, cardW / 2, 14, { align: "center" });
-
+  doc.setFontSize(18);
+  doc.text(SCHOOL_NAME, cardW / 2, 16, { align: "center" });
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, cardW / 2, 20, { align: "center" });
-  doc.setFontSize(6);
-  doc.text(SCHOOL_TRUST, cardW / 2, 26, { align: "center" });
+  doc.text(SCHOOL_TAGLINE, cardW / 2, 22, { align: "center" });
+  doc.setFontSize(5.5);
+  doc.text(SCHOOL_TRUST, cardW / 2, 27, { align: "center" });
   doc.setTextColor(...GOLD);
-  doc.setFontSize(6.5);
+  doc.setFontSize(6);
   doc.text(SCHOOL_REG, cardW / 2, 33, { align: "center" });
+
+  // Gold accent line below header
+  doc.setFillColor(...GOLD);
+  doc.rect(5, 37, cardW - 10, 1.5, "F");
+
+  // "STUDENT INFORMATION" label
+  doc.setFillColor(245, 245, 240);
+  doc.rect(5, 38.5, cardW - 10, 9, "F");
+  doc.setTextColor(...GREEN_DARK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Student Information", cardW / 2, 44.5, { align: "center" });
 
   // White content area
   doc.setFillColor(...WHITE);
-  doc.rect(4, 42, cardW - 8, cardH - 66, "F");
+  doc.rect(5, 47.5, cardW - 10, cardH - 75, "F");
 
   // Photo area (right side)
-  const photoX = 180;
-  const photoY = 48;
-  const photoW = 46;
-  const photoH = 56;
+  const photoX = 182;
+  const photoY = 52;
+  const photoW = 44;
+  const photoH = 54;
   doc.setDrawColor(...GREEN_DARK);
   doc.setLineWidth(0.8);
   doc.rect(photoX, photoY, photoW, photoH, "S");
-
   if (data.photoUrl) {
     try {
       const imgData = await loadImageAsBase64(data.photoUrl);
-      if (imgData) {
-        doc.addImage(imgData, "JPEG", photoX + 0.8, photoY + 0.8, photoW - 1.6, photoH - 1.6);
-      }
-    } catch { /* photo placeholder */ }
+      if (imgData) doc.addImage(imgData, "JPEG", photoX + 0.8, photoY + 0.8, photoW - 1.6, photoH - 1.6);
+    } catch {}
   } else {
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
+    doc.setFontSize(8); doc.setTextColor(...GRAY);
     doc.text("PHOTO", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
   }
 
-  // Student details - left side
-  doc.setTextColor(...BLACK);
-  const labelX = 10;
-  const valueX = 62;
-  let y = 56;
-  const lh = 10.5;
-  const labelSize = 9;
-  const valueSize = 9;
-
-  const drawField = (label: string, value: string, yPos: number) => {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(labelSize);
-    doc.text(`${label} :`, labelX, yPos);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(valueSize);
-    const lines = doc.splitTextToSize(value || "—", 110);
-    doc.text(lines, valueX, yPos);
-    return lines.length > 1 ? lh + (lines.length - 1) * 4 : lh;
+  // Student details - table style
+  const lX = 10; const vX = 62; let y = 56; const lh = 9;
+  const field = (label: string, value: string) => {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...BLACK);
+    doc.text(`${label}`, lX, y);
+    doc.setTextColor(...GRAY); doc.text(":", 57, y);
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...BLACK);
+    const lines = doc.splitTextToSize(value || "—", 112);
+    doc.text(lines, vX, y);
+    y += lines.length > 1 ? lh + (lines.length - 1) * 3.5 : lh;
   };
 
-  y += drawField("Name", data.name, y) - lh + lh;
-  y += drawField("ID Card No.", data.idCardNo, y) - lh + lh;
-  y += drawField("Father/Mother Name", data.fatherMotherName, y) - lh + lh;
+  field("Name", data.name);
+  field("ID Card No.", data.idCardNo);
+  field("Father/Mother", data.fatherMotherName);
 
-  // Class & DOB on same line
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(labelSize);
-  doc.text("Class :", labelX, y);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(valueSize);
-  doc.text(data.className || "—", 32, y);
-  doc.setFont("helvetica", "bold");
-  doc.text("D.O.B. :", 85, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.dob || "—", 110, y);
+  // Class & DOB inline
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...BLACK);
+  doc.text("Class", lX, y); doc.setTextColor(...GRAY); doc.text(":", 30, y);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...BLACK); doc.text(data.className || "—", 33, y);
+  doc.setFont("helvetica", "bold"); doc.text("D.O.B.", 80, y);
+  doc.setTextColor(...GRAY); doc.text(":", 100, y);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...BLACK); doc.text(data.dob || "—", 103, y);
   y += lh;
 
-  // Gender
-  drawField("Gender", data.gender, y);
-  y += lh;
+  field("Gender", data.gender);
+  field("Contact", data.contact);
 
-  // Contact
-  drawField("Contact", data.contact, y);
-  y += lh;
-
-  // Address
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(labelSize);
-  doc.text("Address :", labelX, y);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(valueSize);
-  const addrLines = doc.splitTextToSize(data.address || "—", 155);
-  doc.text(addrLines, 36, y);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...BLACK);
+  doc.text("Address", lX, y); doc.setTextColor(...GRAY); doc.text(":", 32, y);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...BLACK);
+  const addrLines = doc.splitTextToSize(data.address || "—", 140);
+  doc.text(addrLines, 35, y);
 
   // Green footer band
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(4, cardH - 24, cardW - 8, 20, "F");
-
-  doc.setTextColor(...WHITE);
-  doc.setFontSize(6.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_ADDRESS, 10, cardH - 16);
-  doc.text(SCHOOL_PHONE, 10, cardH - 10);
-  doc.text(SCHOOL_EMAIL, 100, cardH - 10);
-
-  // ISO badge
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...GOLD);
-  doc.text("ISO", cardW - 18, cardH - 11, { align: "center" });
+  doc.rect(5, cardH - 22, cardW - 10, 17, "F");
+  doc.setTextColor(...WHITE); doc.setFontSize(6); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_ADDRESS, cardW / 2, cardH - 15, { align: "center" });
+  doc.text(`${SCHOOL_PHONE} | ${SCHOOL_EMAIL}`, cardW / 2, cardH - 10, { align: "center" });
 
   // ── BACK SIDE ──
   doc.addPage([cardW, cardH], "landscape");
-
-  // Full green background
   doc.setFillColor(...GREEN_DARK);
   doc.rect(0, 0, cardW, cardH, "F");
-
-  // Gold double border
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1.5);
-  doc.rect(4, 4, cardW - 8, cardH - 8, "S");
-  doc.setLineWidth(0.5);
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, cardW, 5, "F");
+  doc.rect(0, cardH - 5, cardW, 5, "F");
+  doc.setDrawColor(...GOLD); doc.setLineWidth(1.2);
+  doc.rect(5, 5, cardW - 10, cardH - 10, "S");
+  doc.setLineWidth(0.4);
   doc.rect(8, 8, cardW - 16, cardH - 16, "S");
 
-  // School name
-  doc.setTextColor(...WHITE);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text(SCHOOL_NAME, cardW / 2, 25, { align: "center" });
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, cardW / 2, 33, { align: "center" });
-  doc.setFontSize(6.5);
-  doc.text(SCHOOL_REG, cardW / 2, 40, { align: "center" });
+  // Logo on back
+  if (logo) doc.addImage(logo, "JPEG", cardW / 2 - 14, 15, 28, 28);
 
-  // Terms & conditions
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("TERMS & CONDITIONS:", cardW / 2, 55, { align: "center" });
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+  doc.text(SCHOOL_NAME, cardW / 2, 52, { align: "center" });
+  doc.setFontSize(6.5); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, cardW / 2, 58, { align: "center" });
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(9); doc.setFont("helvetica", "bold");
+  doc.text("TERMS & CONDITIONS", cardW / 2, 70, { align: "center" });
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.3);
+  doc.line(70, 72, 170, 72);
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7);
   const terms = [
     "1. This ID card is the property of Vedanta Valley Public School.",
-    "2. Students must carry this card at all times within the school premises.",
+    "2. Students must carry this card at all times within school premises.",
     "3. If found, please return to the school office.",
     "4. This card is non-transferable.",
-    "5. Loss of card must be reported immediately to the school office.",
-    "6. A replacement fee will be charged for lost or damaged cards.",
+    "5. Loss of card must be reported immediately.",
+    "6. Replacement fee will be charged for lost or damaged cards.",
   ];
-  terms.forEach((t, i) => {
-    doc.text(t, 16, 66 + i * 9);
-  });
+  terms.forEach((t, i) => doc.text(t, 18, 80 + i * 8));
 
-  // Authorized signature area
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.4);
-  doc.line(cardW - 90, cardH - 30, cardW - 20, cardH - 30);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text("Authorized Signature", cardW - 55, cardH - 24, { align: "center" });
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.4);
+  doc.line(cardW - 85, cardH - 28, cardW - 22, cardH - 28);
+  doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("Authorized Signature", cardW - 53, cardH - 23, { align: "center" });
 
   doc.save(`ID_Card_${data.name.replace(/\s+/g, "_")}.pdf`);
 }
