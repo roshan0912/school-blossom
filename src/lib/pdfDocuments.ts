@@ -515,6 +515,165 @@ interface ReportCardData {
 }
 
 export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
+  const logo = await getSchoolLogo();
+
+  // Double border
+  doc.setDrawColor(...NAVY); doc.setLineWidth(1.5);
+  doc.rect(5, 5, 200, 287, "S");
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+  doc.rect(8, 8, 194, 281, "S");
+
+  // Header
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(8, 8, 194, 32, "F");
+  if (logo) doc.addImage(logo, "JPEG", 12, 10, 26, 26);
+
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
+  doc.text(SCHOOL_NAME, 110, 18, { align: "center" });
+  doc.setFontSize(7); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 110, 24, { align: "center" });
+  doc.setFontSize(6);
+  doc.text(SCHOOL_TRUST, 110, 29, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 110, 34, { align: "center" });
+
+  // Gold accent
+  doc.setFillColor(...GOLD); doc.rect(8, 40, 194, 1.5, "F");
+
+  // Title
+  doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text("REPORT CARD", 105, 50, { align: "center" });
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+  doc.line(60, 52, 150, 52);
+
+  // Student photo (right side)
+  if (data.photoUrl) {
+    try {
+      const imgData = await loadImageAsBase64(data.photoUrl);
+      if (imgData) {
+        doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
+        doc.rect(168, 56, 28, 34, "S");
+        doc.addImage(imgData, "JPEG", 168.5, 56.5, 27, 33);
+      }
+    } catch {}
+  }
+
+  // Student info
+  doc.setTextColor(...BLACK); doc.setFontSize(9.5); doc.setFont("helvetica", "normal");
+  const f = (label: string, value: string, x: number, y: number) => {
+    doc.setFont("helvetica", "bold"); doc.text(label, x, y);
+    doc.setFont("helvetica", "normal"); doc.text(value || "—", x + doc.getTextWidth(label) + 2, y);
+  };
+  f("Student Name:", data.studentName, 12, 60);
+  f("Class:", data.className, 12, 67);
+  f("Roll No:", data.rollNo, 80, 67);
+  f("Father's Name:", data.fatherName, 12, 74);
+  f("Mother's Name:", data.motherName, 12, 81);
+  f("D.O.B:", data.dob, 12, 88);
+  f("Academic Year:", data.academicYear, 80, 88);
+  f("Height:", data.height + " cm", 12, 95);
+  f("Weight:", data.weight + " kg", 80, 95);
+
+  // Marks table with 4 exam columns
+  autoTable(doc, {
+    startY: 102,
+    head: [["S.No.", "Subject", "Total", "1st UT", "Half Yearly", "2nd UT", "Annual", "Total Obt.", "Grade"]],
+    body: data.subjects.map((s, i) => {
+      const totalObt = s.ut1 + s.halfYearly + s.ut2 + s.annual;
+      const pct = s.totalMarks * 4 > 0 ? (totalObt / (s.totalMarks * 4)) * 100 : 0;
+      return [
+        (i + 1).toString(),
+        s.subject,
+        String(s.totalMarks),
+        String(s.ut1),
+        String(s.halfYearly),
+        String(s.ut2),
+        String(s.annual),
+        `${totalObt}/${s.totalMarks * 4}`,
+        calculateGrade(pct),
+      ];
+    }),
+    theme: "grid",
+    headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
+    bodyStyles: { fontSize: 8, halign: "center" },
+    alternateRowStyles: { fillColor: [245, 250, 245] },
+    columnStyles: {
+      0: { cellWidth: 10 },
+      1: { halign: "left", cellWidth: 35 },
+      2: { cellWidth: 14 },
+      3: { cellWidth: 16 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 16 },
+      6: { cellWidth: 18 },
+      7: { cellWidth: 22 },
+      8: { cellWidth: 14 },
+    },
+    margin: { left: 12, right: 12 },
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 5;
+
+  // Result summary box
+  doc.setFillColor(245, 250, 245);
+  doc.roundedRect(12, finalY, 186, 18, 2, 2, "F");
+  doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.4);
+  doc.roundedRect(12, finalY, 186, 18, 2, 2, "S");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...BLACK);
+  doc.text("RESULT:", 16, finalY + 7);
+  doc.setTextColor(data.percentage >= 33 ? GREEN_MID[0] : 220, data.percentage >= 33 ? GREEN_MID[1] : 38, data.percentage >= 33 ? GREEN_MID[2] : 38);
+  doc.text(data.percentage >= 33 ? "PASS" : "FAIL", 38, finalY + 7);
+
+  doc.setTextColor(...BLACK);
+  doc.text(`Percentage: ${data.percentage.toFixed(1)}%`, 70, finalY + 7);
+  doc.text(`Overall Grade: ${data.overallGrade}`, 130, finalY + 7);
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GRAY);
+  doc.text("Grading: A+ (≥90) | A (≥80) | B+ (≥70) | B (≥60) | C (≥50) | D (≥40) | E (≥33) | F (<33)", 105, finalY + 14, { align: "center" });
+
+  // Signatures
+  const sigY = finalY + 30;
+  doc.setDrawColor(...BLACK); doc.setLineWidth(0.3);
+  doc.line(15, sigY, 55, sigY);
+  doc.line(80, sigY, 125, sigY);
+  doc.line(155, sigY, 195, sigY);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...BLACK);
+  doc.text("Class Teacher", 25, sigY + 5, { align: "center" });
+  doc.text("Parent/Guardian", 102, sigY + 5, { align: "center" });
+  doc.text("Principal", 175, sigY + 5, { align: "center" });
+
+  // Footer
+  doc.setFillColor(...GREEN_DARK); doc.rect(8, 276, 194, 13, "F");
+  doc.setTextColor(...WHITE); doc.setFontSize(6.5);
+  doc.text("This is a computer-generated Report Card.", 105, 282, { align: "center" });
+  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")} | ${SCHOOL_EMAIL}`, 105, 286, { align: "center" });
+
+  doc.save(`Report_Card_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
+}
+
+// ============== MARKSHEET (Legacy export for backward compatibility) ==============
+interface MarksheetData {
+  studentName: string;
+  rollNo: string;
+  className: string;
+  academicYear: string;
+  dob: string;
+  fatherName: string;
+  motherName: string;
+  results: Array<{
+    subject: string;
+    marksObtained: number;
+    totalMarks: number;
+    grade: string;
+  }>;
+  totalMarks: number;
+  obtainedMarks: number;
+  percentage: number;
+  overallGrade: string;
+  rank?: number;
+}
+
+export function generateMarksheetPDF(data: MarksheetData): void {
   const doc = new jsPDF();
 
   doc.setFillColor(...GREEN_DARK);
