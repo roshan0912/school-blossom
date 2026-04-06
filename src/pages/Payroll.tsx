@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, FileText, IndianRupee, Download, CheckCircle2, Plus, Minus, Trash2, Edit2 } from "lucide-react";
+import { MoreHorizontal, FileText, IndianRupee, Download, CheckCircle2, Plus, Minus, Trash2, Edit2, Calendar, History } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -25,11 +26,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTeachers } from "@/hooks/useTeachers";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePayslipPDF, formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type PayrollItem = {
   id: string;
@@ -60,11 +63,42 @@ interface AdjustmentItem {
   amount: number;
 }
 
+function useSalaryPayments(month: string, year: number) {
+  return useQuery({
+    queryKey: ["salary-payments", month, year],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salary_payments")
+        .select("*")
+        .eq("month", month)
+        .eq("year", year);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+function useAllSalaryPayments() {
+  return useQuery({
+    queryKey: ["salary-payments-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salary_payments")
+        .select("*")
+        .order("year", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export default function Payroll() {
   const { data: teachers, isLoading } = useTeachers();
   const queryClient = useQueryClient();
   const [payslipDialogOpen, setPayslipDialogOpen] = useState(false);
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<PayrollItem | null>(null);
   const [newSalary, setNewSalary] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(
@@ -73,6 +107,22 @@ export default function Payroll() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [allowances, setAllowances] = useState<AdjustmentItem[]>([]);
   const [deductions, setDeductions] = useState<AdjustmentItem[]>([]);
+
+  const { data: salaryPayments } = useSalaryPayments(selectedMonth, selectedYear);
+  const { data: allPayments } = useAllSalaryPayments();
+
+  // Build a set of teacher IDs who have been paid for selected month/year
+  const paidTeacherIds = useMemo(() => {
+    const set = new Set<string>();
+    salaryPayments?.forEach((p) => set.add(p.teacher_id));
+    return set;
+  }, [salaryPayments]);
+
+  // Get payment history for a specific teacher
+  const teacherPaymentHistory = useMemo(() => {
+    if (!selectedTeacher || !allPayments) return [];
+    return allPayments.filter((p) => p.teacher_id === selectedTeacher.id);
+  }, [selectedTeacher, allPayments]);
 
   const addAllowance = () => setAllowances([...allowances, { label: "", amount: 0 }]);
   const addDeduction = () => setDeductions([...deductions, { label: "", amount: 0 }]);
@@ -103,6 +153,11 @@ export default function Payroll() {
     setSalaryDialogOpen(true);
   };
 
+  const openHistoryDialog = (teacher: PayrollItem) => {
+    setSelectedTeacher(teacher);
+    setHistoryDialogOpen(true);
+  };
+
   const handleUpdateSalary = async () => {
     if (!selectedTeacher) return;
     const { error } = await supabase
@@ -119,35 +174,39 @@ export default function Payroll() {
   };
 
   const handleMarkAsPaid = async (teacher: PayrollItem) => {
-    const { error } = await supabase
-      .from("teachers")
-      .update({ salary_status: "paid" as const })
-      .eq("id", teacher.id);
+    // Check if already paid for this month
+    if (paidTeacherIds.has(teacher.id)) {
+      toast.error(`${teacher.name} is already paid for ${selectedMonth} ${selectedYear}`);
+      return;
+    }
+    // Record in salary_payments
+    const { error } = await supabase.from("salary_payments").insert({
+      teacher_id: teacher.id,
+      amount: teacher.salary || 0,
+      month: selectedMonth,
+      year: selectedYear,
+    });
     if (error) {
-      toast.error("Failed to update status");
+      toast.error("Failed to record payment: " + error.message);
     } else {
-      // Record in salary_payments
-      await supabase.from("salary_payments").insert({
-        teacher_id: teacher.id,
-        amount: teacher.salary || 0,
-        month: selectedMonth,
-        year: selectedYear,
-      });
-      toast.success(`${teacher.name} marked as paid`);
-      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      toast.success(`${teacher.name} paid for ${selectedMonth} ${selectedYear}`);
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-payments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     }
   };
 
-  const handleMarkAsPending = async (teacher: PayrollItem) => {
-    const { error } = await supabase
-      .from("teachers")
-      .update({ salary_status: "pending" as const })
-      .eq("id", teacher.id);
+  const handleUndoPayment = async (teacher: PayrollItem) => {
+    const payment = salaryPayments?.find((p) => p.teacher_id === teacher.id);
+    if (!payment) return;
+    const { error } = await supabase.from("salary_payments").delete().eq("id", payment.id);
     if (error) {
-      toast.error("Failed to update status");
+      toast.error("Failed to undo payment");
     } else {
-      toast.success(`${teacher.name} marked as pending`);
-      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      toast.success(`Payment undone for ${teacher.name}`);
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-payments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     }
   };
 
@@ -181,7 +240,36 @@ export default function Payroll() {
     setPayslipDialogOpen(false);
   };
 
+  const handlePayAll = async () => {
+    const unpaid = teachers?.filter((t) => !paidTeacherIds.has(t.id) && (t.salary || 0) > 0);
+    if (!unpaid || unpaid.length === 0) {
+      toast.info("All teachers are already paid for this month");
+      return;
+    }
+    const records = unpaid.map((t) => ({
+      teacher_id: t.id,
+      amount: t.salary || 0,
+      month: selectedMonth,
+      year: selectedYear,
+    }));
+    const { error } = await supabase.from("salary_payments").insert(records);
+    if (error) {
+      toast.error("Failed to process bulk payment");
+    } else {
+      toast.success(`${unpaid.length} teachers paid for ${selectedMonth} ${selectedYear}`);
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-payments-all"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    }
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+
+  const totalPaidThisMonth = salaryPayments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+  const totalPendingThisMonth = teachers?.filter((t) => !paidTeacherIds.has(t.id)).reduce((sum, t) => sum + (t.salary || 0), 0) || 0;
+  const totalPayroll = teachers?.reduce((sum, t) => sum + (t.salary || 0), 0) || 0;
+  const paidCount = paidTeacherIds.size;
+  const totalCount = teachers?.length || 0;
 
   const columns = [
     {
@@ -205,7 +293,7 @@ export default function Payroll() {
     },
     { 
       key: "salary", 
-      label: "Salary",
+      label: "Monthly Salary",
       render: (item: PayrollItem) => (
         <span className="font-semibold text-success">
           {formatINR(item.salary || 0)}
@@ -213,98 +301,140 @@ export default function Payroll() {
       ),
     },
     {
-      key: "salary_status",
-      label: "Status",
-      render: (item: PayrollItem) => (
-        <Badge variant="outline" className={statusColors[item.salary_status || "pending"]}>
-          {(item.salary_status || "pending").charAt(0).toUpperCase() + (item.salary_status || "pending").slice(1)}
-        </Badge>
-      ),
+      key: "status",
+      label: `${selectedMonth} ${selectedYear}`,
+      render: (item: PayrollItem) => {
+        const isPaid = paidTeacherIds.has(item.id);
+        return (
+          <Badge variant="outline" className={isPaid ? statusColors.paid : statusColors.pending}>
+            {isPaid ? "Paid" : "Pending"}
+          </Badge>
+        );
+      },
     },
     {
       key: "actions",
       label: "Actions",
-      render: (item: PayrollItem) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem className="gap-2" onClick={() => openPayslipDialog(item)}>
-              <FileText className="h-4 w-4" /> Generate Payslip
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2" onClick={() => openSalaryDialog(item)}>
-              <Edit2 className="h-4 w-4" /> Edit Salary
-            </DropdownMenuItem>
-            {item.salary_status === "pending" ? (
-              <DropdownMenuItem className="gap-2" onClick={() => handleMarkAsPaid(item)}>
-                <CheckCircle2 className="h-4 w-4" /> Mark as Paid
+      render: (item: PayrollItem) => {
+        const isPaid = paidTeacherIds.has(item.id);
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="gap-2" onClick={() => openPayslipDialog(item)}>
+                <FileText className="h-4 w-4" /> Generate Payslip
               </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem className="gap-2" onClick={() => handleMarkAsPending(item)}>
-                <IndianRupee className="h-4 w-4" /> Mark as Pending
+              <DropdownMenuItem className="gap-2" onClick={() => openSalaryDialog(item)}>
+                <Edit2 className="h-4 w-4" /> Edit Salary
               </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+              <DropdownMenuItem className="gap-2" onClick={() => openHistoryDialog(item)}>
+                <History className="h-4 w-4" /> Payment History
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {isPaid ? (
+                <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleUndoPayment(item)}>
+                  <IndianRupee className="h-4 w-4" /> Undo Payment
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem className="gap-2" onClick={() => handleMarkAsPaid(item)}>
+                  <CheckCircle2 className="h-4 w-4" /> Mark as Paid
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 
-  const totalPaid = teachers?.filter(t => t.salary_status === "paid").reduce((sum, t) => sum + (t.salary || 0), 0) || 0;
-  const totalPending = teachers?.filter(t => t.salary_status !== "paid").reduce((sum, t) => sum + (t.salary || 0), 0) || 0;
-
   return (
     <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Payroll Management</h1>
-        <p className="page-description">Manage salaries, generate payslips, and track payments</p>
+      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">Payroll Management</h1>
+          <p className="page-description">Monthly salary tracking, payslip generation, and payment history</p>
+        </div>
+        <Button onClick={handlePayAll} className="gap-2" disabled={paidCount === totalCount}>
+          <CheckCircle2 className="h-4 w-4" /> Pay All for {selectedMonth}
+        </Button>
+      </div>
+
+      {/* Month/Year Selector */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Month</Label>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Year</Label>
+          <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
+            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Badge variant="outline" className="h-9 px-3 text-sm">
+          {paidCount} / {totalCount} paid
+        </Badge>
       </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Payroll</p>
-              <p className="text-2xl font-bold mt-1">{formatINR(totalPaid + totalPending)}</p>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Payroll</p>
+                <p className="text-2xl font-bold mt-1">{formatINR(totalPayroll)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                <IndianRupee className="h-6 w-6" />
+              </div>
             </div>
-            <div className="p-3 rounded-xl bg-primary/10 text-primary">
-              <IndianRupee className="h-6 w-6" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Paid ({selectedMonth})</p>
+                <p className="text-2xl font-bold mt-1 text-success">{formatINR(totalPaidThisMonth)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-success/10 text-success">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
-              <p className="text-2xl font-bold mt-1 text-success">{formatINR(totalPaid)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Pending ({selectedMonth})</p>
+                <p className="text-2xl font-bold mt-1 text-warning">{formatINR(totalPendingThisMonth)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-warning/10 text-warning">
+                <IndianRupee className="h-6 w-6" />
+              </div>
             </div>
-            <div className="p-3 rounded-xl bg-success/10 text-success">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              <p className="text-2xl font-bold mt-1 text-warning">{formatINR(totalPending)}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-warning/10 text-warning">
-              <IndianRupee className="h-6 w-6" />
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       <DataTable
         data={teachers || []}
         columns={columns}
         searchPlaceholder="Search employees..."
-        onExport={() => toast.success("Exporting payroll data...")}
         isLoading={isLoading}
       />
 
@@ -427,6 +557,35 @@ export default function Payroll() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSalaryDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleUpdateSalary}>Save Salary</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Payment History — {selectedTeacher?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {teacherPaymentHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No payment records found</p>
+            ) : (
+              teacherPaymentHistory.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                  <div>
+                    <p className="font-medium text-sm">{p.month} {p.year}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Paid on {new Date(p.payment_date).toLocaleDateString("en-IN")}
+                    </p>
+                  </div>
+                  <span className="font-bold text-success">{formatINR(p.amount)}</span>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
