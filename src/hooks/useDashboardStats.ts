@@ -7,6 +7,7 @@ export interface DashboardStats {
   totalClasses: number;
   feesCollected: number;
   pendingSalaries: number;
+  salaryPaid: number;
   todayStudentAttendance: number;
   todayTeacherAttendance: number;
   studentAttendanceRate: number;
@@ -33,7 +34,8 @@ export function useDashboardStats() {
         supabase.from("teachers").select("id", { count: "exact", head: true }),
         supabase.from("classes").select("id", { count: "exact", head: true }),
         supabase.from("fee_installments").select("amount, status").eq("status", "paid"),
-        supabase.from("teachers").select("salary").eq("salary_status", "pending"),
+        supabase.from("salary_payments").select("amount"),
+        supabase.from("teachers").select("salary"),
         supabase.from("student_attendance").select("status").eq("date", today),
         supabase.from("teacher_attendance").select("status").eq("date", today),
       ]);
@@ -42,11 +44,10 @@ export function useDashboardStats() {
       const totalTeachers = teachersResult.count || 0;
       const totalClasses = classesResult.count || 0;
 
-      // Calculate fees collected from fee_installments (paid)
       const feesCollected = paymentsResult.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-
-      // Calculate pending salaries
-      const pendingSalaries = pendingSalariesResult.data?.reduce((sum, t) => sum + (t.salary || 0), 0) || 0;
+      const salaryPaid = pendingSalariesResult.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+      const totalSalaryBudget = (teacherAttendanceResult as any)?.data?.reduce?.((sum: number, t: any) => sum + (t.salary || 0), 0) || 0;
+      const pendingSalaries = totalSalaryBudget - salaryPaid;
 
       // Calculate today's attendance
       const studentAttendanceData = studentAttendanceResult.data || [];
