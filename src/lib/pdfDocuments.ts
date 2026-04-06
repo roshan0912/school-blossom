@@ -490,8 +490,8 @@ export async function generatePickupPassPDF(data: PickupPassData): Promise<void>
   doc.save(`Pickup_Pass_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
 
-// ============== MARKSHEET ==============
-interface MarksheetData {
+// ============== REPORT CARD (4 Exam Columns) ==============
+interface ReportCardData {
   studentName: string;
   rollNo: string;
   className: string;
@@ -499,20 +499,22 @@ interface MarksheetData {
   dob: string;
   fatherName: string;
   motherName: string;
-  results: Array<{
+  height: string;
+  weight: string;
+  photoUrl?: string | null;
+  subjects: Array<{
     subject: string;
-    marksObtained: number;
     totalMarks: number;
-    grade: string;
+    ut1: number;
+    halfYearly: number;
+    ut2: number;
+    annual: number;
   }>;
-  totalMarks: number;
-  obtainedMarks: number;
-  percentage: number;
   overallGrade: string;
-  rank?: number;
+  percentage: number;
 }
 
-export function generateMarksheetPDF(data: MarksheetData): void {
+export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
   const doc = new jsPDF();
 
   doc.setFillColor(...GREEN_DARK);
