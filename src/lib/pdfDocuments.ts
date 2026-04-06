@@ -580,7 +580,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     head: [["S.No.", "Subject", "Total", "1st UT", "Half Yearly", "2nd UT", "Annual", "Total Obt.", "Grade"]],
     body: data.subjects.map((s, i) => {
       const totalObt = s.ut1 + s.halfYearly + s.ut2 + s.annual;
-      const pct = s.totalMarks * 4 > 0 ? (totalObt / (s.totalMarks * 4)) * 100 : 0;
+      const pct = s.totalMarks > 0 ? (totalObt / s.totalMarks) * 100 : 0;
       return [
         (i + 1).toString(),
         s.subject,
@@ -589,7 +589,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
         String(s.halfYearly),
         String(s.ut2),
         String(s.annual),
-        `${totalObt}/${s.totalMarks * 4}`,
+        String(totalObt),
         calculateGrade(pct),
       ];
     }),

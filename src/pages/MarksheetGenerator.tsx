@@ -72,7 +72,7 @@ export default function MarksheetGenerator() {
   };
 
   const totalObtained = subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
-  const totalMax = subjects.reduce((s, r) => s + r.totalMarks * 4, 0);
+  const totalMax = subjects.reduce((s, r) => s + r.totalMarks, 0);
   const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
   const overallGrade = calculateGrade(percentage);
 
