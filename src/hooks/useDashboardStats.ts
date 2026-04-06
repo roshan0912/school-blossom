@@ -26,7 +26,8 @@ export function useDashboardStats() {
         teachersResult,
         classesResult,
         paymentsResult,
-        pendingSalariesResult,
+        salaryPaymentsResult,
+        allTeachersResult,
         studentAttendanceResult,
         teacherAttendanceResult,
       ] = await Promise.all([
@@ -45,11 +46,10 @@ export function useDashboardStats() {
       const totalClasses = classesResult.count || 0;
 
       const feesCollected = paymentsResult.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-      const salaryPaid = pendingSalariesResult.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-      const totalSalaryBudget = (teacherAttendanceResult as any)?.data?.reduce?.((sum: number, t: any) => sum + (t.salary || 0), 0) || 0;
-      const pendingSalaries = totalSalaryBudget - salaryPaid;
+      const salaryPaid = salaryPaymentsResult.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+      const totalSalaryBudget = allTeachersResult.data?.reduce((sum, t) => sum + (t.salary || 0), 0) || 0;
+      const pendingSalaries = Math.max(0, totalSalaryBudget - salaryPaid);
 
-      // Calculate today's attendance
       const studentAttendanceData = studentAttendanceResult.data || [];
       const teacherAttendanceData = teacherAttendanceResult.data || [];
 
@@ -70,6 +70,7 @@ export function useDashboardStats() {
         totalClasses,
         feesCollected,
         pendingSalaries,
+        salaryPaid,
         todayStudentAttendance: presentStudents,
         todayTeacherAttendance: presentTeachers,
         studentAttendanceRate,
