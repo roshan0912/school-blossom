@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useStudents } from "@/hooks/useStudents";
 import { useClasses } from "@/hooks/useClasses";
-import { generateMarksheetPDF } from "@/lib/pdfDocuments";
+import { generateReportCardPDF } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +20,16 @@ import { Badge } from "@/components/ui/badge";
 interface SubjectRow {
   subject: string;
   totalMarks: number;
-  marksObtained: number;
+  ut1: number;
+  halfYearly: number;
+  ut2: number;
+  annual: number;
 }
+
+const DEFAULT_SUBJECTS = [
+  "English", "Hindi", "Mathematics", "Science", "Social Science",
+  "Computer", "G.K.", "Drawing", "Moral Science",
+];
 
 export default function MarksheetGenerator() {
   const { data: students, isLoading: studentsLoading } = useStudents();
@@ -29,9 +37,18 @@ export default function MarksheetGenerator() {
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [academicYear, setAcademicYear] = useState("2025-2026");
-  const [subjects, setSubjects] = useState<SubjectRow[]>([
-    { subject: "", totalMarks: 100, marksObtained: 0 },
-  ]);
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [subjects, setSubjects] = useState<SubjectRow[]>(
+    DEFAULT_SUBJECTS.map((s) => ({
+      subject: s,
+      totalMarks: 100,
+      ut1: 0,
+      halfYearly: 0,
+      ut2: 0,
+      annual: 0,
+    }))
+  );
 
   const selectedStudent = useMemo(
     () => students?.find((s) => s.id === selectedStudentId),
@@ -39,7 +56,7 @@ export default function MarksheetGenerator() {
   );
 
   const addSubject = () =>
-    setSubjects([...subjects, { subject: "", totalMarks: 100, marksObtained: 0 }]);
+    setSubjects([...subjects, { subject: "", totalMarks: 100, ut1: 0, halfYearly: 0, ut2: 0, annual: 0 }]);
 
   const removeSubject = (i: number) =>
     setSubjects(subjects.filter((_, idx) => idx !== i));
@@ -54,12 +71,12 @@ export default function MarksheetGenerator() {
     setSubjects(updated);
   };
 
-  const totalMarks = subjects.reduce((s, r) => s + r.totalMarks, 0);
-  const obtainedMarks = subjects.reduce((s, r) => s + r.marksObtained, 0);
-  const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
+  const totalObtained = subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
+  const totalMax = subjects.reduce((s, r) => s + r.totalMarks * 4, 0);
+  const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
   const overallGrade = calculateGrade(percentage);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!selectedStudent) {
       toast.error("Please select a student");
       return;
@@ -70,7 +87,8 @@ export default function MarksheetGenerator() {
       return;
     }
 
-    generateMarksheetPDF({
+    toast.info("Generating Report Card...");
+    await generateReportCardPDF({
       studentName: selectedStudent.name,
       rollNo: selectedStudent.roll_no || "—",
       className: (selectedStudent as any).classes?.name || "—",
@@ -78,19 +96,22 @@ export default function MarksheetGenerator() {
       dob: selectedStudent.date_of_birth || "—",
       fatherName: selectedStudent.parent_name || "—",
       motherName: (selectedStudent as any).mother_name || "—",
-      results: validSubjects.map((s) => ({
+      height: height || "—",
+      weight: weight || "—",
+      photoUrl: selectedStudent.photo_url,
+      subjects: validSubjects.map((s) => ({
         subject: s.subject,
-        marksObtained: s.marksObtained,
         totalMarks: s.totalMarks,
-        grade: calculateGrade((s.marksObtained / s.totalMarks) * 100),
+        ut1: s.ut1,
+        halfYearly: s.halfYearly,
+        ut2: s.ut2,
+        annual: s.annual,
       })),
-      totalMarks,
-      obtainedMarks,
-      percentage,
       overallGrade,
+      percentage,
     });
 
-    toast.success("Marksheet generated!");
+    toast.success("Report Card generated!");
   };
 
   if (studentsLoading) {
@@ -102,18 +123,18 @@ export default function MarksheetGenerator() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div className="page-header">
-        <h1 className="page-title">Marksheet Generator</h1>
+        <h1 className="page-title">Report Card Generator</h1>
         <p className="page-description">
-          Create customizable marksheets for students with any subjects and marks
+          Create comprehensive report cards with 1st Unit Test, Half Yearly, 2nd Unit Test & Annual Exam
         </p>
       </div>
 
       <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
         {/* Student Selection */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-1 sm:col-span-2">
             <Label>Select Student</Label>
             <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
               <SelectTrigger>
@@ -136,11 +157,21 @@ export default function MarksheetGenerator() {
               placeholder="e.g. 2025-2026"
             />
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label>Height (cm)</Label>
+              <Input value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 120" />
+            </div>
+            <div className="space-y-1">
+              <Label>Weight (kg)</Label>
+              <Input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g. 30" />
+            </div>
+          </div>
         </div>
 
         {/* Selected Student Info */}
         {selectedStudent && (
-          <div className="p-3 rounded-lg bg-muted/30 border grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+          <div className="p-3 rounded-lg bg-muted/30 border grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
             <div>
               <span className="text-muted-foreground">Name: </span>
               <span className="font-medium">{selectedStudent.name}</span>
@@ -157,10 +188,14 @@ export default function MarksheetGenerator() {
               <span className="text-muted-foreground">DOB: </span>
               <span className="font-medium">{selectedStudent.date_of_birth || "—"}</span>
             </div>
+            <div>
+              <span className="text-muted-foreground">Father: </span>
+              <span className="font-medium">{selectedStudent.parent_name || "—"}</span>
+            </div>
           </div>
         )}
 
-        {/* Subjects Table */}
+        {/* Subjects Table with 4 exam columns */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-base font-semibold">Subjects & Marks</Label>
@@ -169,17 +204,19 @@ export default function MarksheetGenerator() {
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_100px_100px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-              <span>Subject</span>
-              <span>Total Marks</span>
-              <span>Obtained</span>
-              <span></span>
-            </div>
-            {subjects.map((s, i) => {
-              const pct = s.totalMarks > 0 ? (s.marksObtained / s.totalMarks) * 100 : 0;
-              return (
-                <div key={i} className="grid grid-cols-[1fr_100px_100px_40px] gap-2 items-center">
+          <div className="overflow-x-auto">
+            <div className="min-w-[700px] space-y-2">
+              <div className="grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
+                <span>Subject</span>
+                <span className="text-center">Total</span>
+                <span className="text-center">1st UT</span>
+                <span className="text-center">Half Yearly</span>
+                <span className="text-center">2nd UT</span>
+                <span className="text-center">Annual</span>
+                <span></span>
+              </div>
+              {subjects.map((s, i) => (
+                <div key={i} className="grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2 items-center">
                   <Input
                     placeholder="Subject name"
                     value={s.subject}
@@ -189,12 +226,35 @@ export default function MarksheetGenerator() {
                     type="number"
                     value={s.totalMarks || ""}
                     onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
+                    className="text-center"
                   />
                   <Input
                     type="number"
-                    value={s.marksObtained || ""}
-                    onChange={(e) => updateSubject(i, "marksObtained", e.target.value)}
+                    value={s.ut1 || ""}
+                    onChange={(e) => updateSubject(i, "ut1", e.target.value)}
                     max={s.totalMarks}
+                    className="text-center"
+                  />
+                  <Input
+                    type="number"
+                    value={s.halfYearly || ""}
+                    onChange={(e) => updateSubject(i, "halfYearly", e.target.value)}
+                    max={s.totalMarks}
+                    className="text-center"
+                  />
+                  <Input
+                    type="number"
+                    value={s.ut2 || ""}
+                    onChange={(e) => updateSubject(i, "ut2", e.target.value)}
+                    max={s.totalMarks}
+                    className="text-center"
+                  />
+                  <Input
+                    type="number"
+                    value={s.annual || ""}
+                    onChange={(e) => updateSubject(i, "annual", e.target.value)}
+                    max={s.totalMarks}
+                    className="text-center"
                   />
                   <Button
                     type="button"
@@ -207,8 +267,8 @@ export default function MarksheetGenerator() {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
 
@@ -217,8 +277,8 @@ export default function MarksheetGenerator() {
           <h3 className="font-semibold">Result Summary</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <p className="text-xs text-muted-foreground">Total Marks</p>
-              <p className="text-lg font-bold">{obtainedMarks} / {totalMarks}</p>
+              <p className="text-xs text-muted-foreground">Aggregate</p>
+              <p className="text-lg font-bold">{totalObtained} / {totalMax}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Percentage</p>
@@ -250,7 +310,7 @@ export default function MarksheetGenerator() {
 
         {/* Generate Button */}
         <Button onClick={handleGenerate} className="w-full gap-2" size="lg" disabled={!selectedStudentId}>
-          <Download className="h-5 w-5" /> Generate & Download Marksheet
+          <Download className="h-5 w-5" /> Generate & Download Report Card
         </Button>
       </div>
     </div>

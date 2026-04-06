@@ -51,7 +51,7 @@ const navigationSections = [
       { name: "Timetable", href: "/timetable", icon: CalendarDays },
       { name: "Attendance", href: "/attendance", icon: Calendar },
       { name: "Exams", href: "/exams", icon: FileText },
-      { name: "Marksheet", href: "/marksheet", icon: ScrollText },
+      { name: "Report Card", href: "/marksheet", icon: ScrollText },
       { name: "TC Generator", href: "/tc-generator", icon: FileOutput },
       { name: "Homework", href: "/homework", icon: ClipboardList },
     ],

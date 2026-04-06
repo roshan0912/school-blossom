@@ -490,7 +490,168 @@ export async function generatePickupPassPDF(data: PickupPassData): Promise<void>
   doc.save(`Pickup_Pass_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
 
-// ============== MARKSHEET ==============
+// ============== REPORT CARD (4 Exam Columns) ==============
+interface ReportCardData {
+  studentName: string;
+  rollNo: string;
+  className: string;
+  academicYear: string;
+  dob: string;
+  fatherName: string;
+  motherName: string;
+  height: string;
+  weight: string;
+  photoUrl?: string | null;
+  subjects: Array<{
+    subject: string;
+    totalMarks: number;
+    ut1: number;
+    halfYearly: number;
+    ut2: number;
+    annual: number;
+  }>;
+  overallGrade: string;
+  percentage: number;
+}
+
+export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
+  const logo = await getSchoolLogo();
+
+  // Double border
+  doc.setDrawColor(...NAVY); doc.setLineWidth(1.5);
+  doc.rect(5, 5, 200, 287, "S");
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+  doc.rect(8, 8, 194, 281, "S");
+
+  // Header
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(8, 8, 194, 32, "F");
+  if (logo) doc.addImage(logo, "JPEG", 12, 10, 26, 26);
+
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
+  doc.text(SCHOOL_NAME, 110, 18, { align: "center" });
+  doc.setFontSize(7); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, 110, 24, { align: "center" });
+  doc.setFontSize(6);
+  doc.text(SCHOOL_TRUST, 110, 29, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 110, 34, { align: "center" });
+
+  // Gold accent
+  doc.setFillColor(...GOLD); doc.rect(8, 40, 194, 1.5, "F");
+
+  // Title
+  doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text("REPORT CARD", 105, 50, { align: "center" });
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+  doc.line(60, 52, 150, 52);
+
+  // Student photo (right side)
+  if (data.photoUrl) {
+    try {
+      const imgData = await loadImageAsBase64(data.photoUrl);
+      if (imgData) {
+        doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
+        doc.rect(168, 56, 28, 34, "S");
+        doc.addImage(imgData, "JPEG", 168.5, 56.5, 27, 33);
+      }
+    } catch {}
+  }
+
+  // Student info
+  doc.setTextColor(...BLACK); doc.setFontSize(9.5); doc.setFont("helvetica", "normal");
+  const f = (label: string, value: string, x: number, y: number) => {
+    doc.setFont("helvetica", "bold"); doc.text(label, x, y);
+    doc.setFont("helvetica", "normal"); doc.text(value || "—", x + doc.getTextWidth(label) + 2, y);
+  };
+  f("Student Name:", data.studentName, 12, 60);
+  f("Class:", data.className, 12, 67);
+  f("Roll No:", data.rollNo, 80, 67);
+  f("Father's Name:", data.fatherName, 12, 74);
+  f("Mother's Name:", data.motherName, 12, 81);
+  f("D.O.B:", data.dob, 12, 88);
+  f("Academic Year:", data.academicYear, 80, 88);
+  f("Height:", data.height + " cm", 12, 95);
+  f("Weight:", data.weight + " kg", 80, 95);
+
+  // Marks table with 4 exam columns
+  autoTable(doc, {
+    startY: 102,
+    head: [["S.No.", "Subject", "Total", "1st UT", "Half Yearly", "2nd UT", "Annual", "Total Obt.", "Grade"]],
+    body: data.subjects.map((s, i) => {
+      const totalObt = s.ut1 + s.halfYearly + s.ut2 + s.annual;
+      const pct = s.totalMarks * 4 > 0 ? (totalObt / (s.totalMarks * 4)) * 100 : 0;
+      return [
+        (i + 1).toString(),
+        s.subject,
+        String(s.totalMarks),
+        String(s.ut1),
+        String(s.halfYearly),
+        String(s.ut2),
+        String(s.annual),
+        `${totalObt}/${s.totalMarks * 4}`,
+        calculateGrade(pct),
+      ];
+    }),
+    theme: "grid",
+    headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
+    bodyStyles: { fontSize: 8, halign: "center" },
+    alternateRowStyles: { fillColor: [245, 250, 245] },
+    columnStyles: {
+      0: { cellWidth: 10 },
+      1: { halign: "left", cellWidth: 35 },
+      2: { cellWidth: 14 },
+      3: { cellWidth: 16 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 16 },
+      6: { cellWidth: 18 },
+      7: { cellWidth: 22 },
+      8: { cellWidth: 14 },
+    },
+    margin: { left: 12, right: 12 },
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 5;
+
+  // Result summary box
+  doc.setFillColor(245, 250, 245);
+  doc.roundedRect(12, finalY, 186, 18, 2, 2, "F");
+  doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.4);
+  doc.roundedRect(12, finalY, 186, 18, 2, 2, "S");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...BLACK);
+  doc.text("RESULT:", 16, finalY + 7);
+  doc.setTextColor(data.percentage >= 33 ? GREEN_MID[0] : 220, data.percentage >= 33 ? GREEN_MID[1] : 38, data.percentage >= 33 ? GREEN_MID[2] : 38);
+  doc.text(data.percentage >= 33 ? "PASS" : "FAIL", 38, finalY + 7);
+
+  doc.setTextColor(...BLACK);
+  doc.text(`Percentage: ${data.percentage.toFixed(1)}%`, 70, finalY + 7);
+  doc.text(`Overall Grade: ${data.overallGrade}`, 130, finalY + 7);
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GRAY);
+  doc.text("Grading: A+ (≥90) | A (≥80) | B+ (≥70) | B (≥60) | C (≥50) | D (≥40) | E (≥33) | F (<33)", 105, finalY + 14, { align: "center" });
+
+  // Signatures
+  const sigY = finalY + 30;
+  doc.setDrawColor(...BLACK); doc.setLineWidth(0.3);
+  doc.line(15, sigY, 55, sigY);
+  doc.line(80, sigY, 125, sigY);
+  doc.line(155, sigY, 195, sigY);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...BLACK);
+  doc.text("Class Teacher", 25, sigY + 5, { align: "center" });
+  doc.text("Parent/Guardian", 102, sigY + 5, { align: "center" });
+  doc.text("Principal", 175, sigY + 5, { align: "center" });
+
+  // Footer
+  doc.setFillColor(...GREEN_DARK); doc.rect(8, 276, 194, 13, "F");
+  doc.setTextColor(...WHITE); doc.setFontSize(6.5);
+  doc.text("This is a computer-generated Report Card.", 105, 282, { align: "center" });
+  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")} | ${SCHOOL_EMAIL}`, 105, 286, { align: "center" });
+
+  doc.save(`Report_Card_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
+}
+
+// ============== MARKSHEET (Legacy export for backward compatibility) ==============
 interface MarksheetData {
   studentName: string;
   rollNo: string;
@@ -719,100 +880,112 @@ export interface TransferCertificateData {
 export async function generateTransferCertificatePDF(data: TransferCertificateData): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
   const logo = await getSchoolLogo();
+  const W = 210;
 
-  // Elegant double border
-  doc.setDrawColor(...NAVY); doc.setLineWidth(2);
-  doc.rect(6, 6, 198, 285, "S");
-  doc.setDrawColor(...GOLD); doc.setLineWidth(0.6);
-  doc.rect(9, 9, 192, 279, "S");
+  // Double border
+  doc.setDrawColor(...NAVY); doc.setLineWidth(1.8);
+  doc.rect(7, 7, W - 14, 283, "S");
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+  doc.rect(10, 10, W - 20, 277, "S");
 
-  // Header with logo
+  // Green header
   doc.setFillColor(...GREEN_DARK);
-  doc.rect(9, 9, 192, 40, "F");
+  doc.rect(10, 10, W - 20, 35, "F");
+  if (logo) doc.addImage(logo, "JPEG", 14, 13, 28, 28);
 
-  if (logo) doc.addImage(logo, "JPEG", 14, 12, 32, 32);
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+  doc.text(SCHOOL_NAME, W / 2 + 5, 20, { align: "center" });
+  doc.setFontSize(7); doc.setFont("helvetica", "normal");
+  doc.text(SCHOOL_TAGLINE, W / 2 + 5, 26, { align: "center" });
+  doc.setFontSize(6);
+  doc.text(SCHOOL_TRUST, W / 2 + 5, 31, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, W / 2 + 5, 36, { align: "center" });
+  doc.setFontSize(5.5); doc.text(SCHOOL_EMAIL, W / 2 + 5, 41, { align: "center" });
 
-  doc.setTextColor(...WHITE); doc.setFont("helvetica", "bold"); doc.setFontSize(22);
-  doc.text(SCHOOL_NAME, 115, 21, { align: "center" });
-  doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
-  doc.text(SCHOOL_TAGLINE, 115, 27, { align: "center" });
-  doc.setFontSize(6.5);
-  doc.text(SCHOOL_TRUST, 115, 32, { align: "center" });
-  doc.text(`${SCHOOL_ADDRESS} | ${SCHOOL_PHONE}`, 115, 37, { align: "center" });
-  doc.text(SCHOOL_EMAIL, 115, 42, { align: "center" });
-
-  // Gold accent bar
-  doc.setFillColor(...GOLD); doc.rect(9, 49, 192, 2, "F");
+  // Gold bar
+  doc.setFillColor(...GOLD); doc.rect(10, 45, W - 20, 1.5, "F");
 
   // Title
-  doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
-  doc.text("TRANSFER CERTIFICATE", 105, 62, { align: "center" });
-  doc.setDrawColor(...GOLD); doc.setLineWidth(0.6);
-  doc.line(55, 65, 155, 65);
+  doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(17);
+  doc.text("TRANSFER CERTIFICATE", W / 2, 56, { align: "center" });
+  doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+  doc.line(58, 58, W - 58, 58);
 
   // TC & Admission numbers
   doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont("helvetica", "bold");
-  doc.text(`TC No.: ${data.tcNo}`, 14, 75);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Admission No.: ${data.admissionNo}`, 140, 75);
+  doc.text(`TC No.: ${data.tcNo}`, 15, 66);
+  doc.text(`Admission No.: ${data.admissionNo}`, W - 15, 66, { align: "right" });
 
-  // Details table
-  const tcDetails = [
-    ["1.", "Name of Pupil", ":", data.studentName],
-    ["2.", "Father's / Guardian's Name", ":", data.fatherName],
-    ["3.", "Mother's Name", ":", data.motherName],
-    ["4.", "Nationality", ":", data.nationality],
-    ["5.", "Category (SC/ST/OBC/GEN)", ":", data.category],
-    ["6.", "Date of Birth (in Christian Era)", ":", data.dob],
-    ["7.", "Date of first admission in School", ":", data.dateOfAdmission],
-    ["8.", "Class in which admitted", ":", data.classAdmitted],
-    ["9.", "Class in which pupil last studied", ":", data.classLeft],
-    ["10.", "Reason for leaving the school", ":", data.reasonForLeaving],
-    ["11.", "General Conduct", ":", data.conduct],
-    ["12.", "Date of application for certificate", ":", data.dateOfApplication],
-    ["13.", "Date of issue of certificate", ":", data.dateOfIssue]
+  // Details - using autoTable for perfect alignment
+  const tcRows = [
+    ["1.", "Name of Pupil", data.studentName],
+    ["2.", "Father's / Guardian's Name", data.fatherName],
+    ["3.", "Mother's Name", data.motherName],
+    ["4.", "Nationality", data.nationality],
+    ["5.", "Category (SC/ST/OBC/GEN)", data.category],
+    ["6.", "Date of Birth (in Christian Era)", data.dob],
+    ["7.", "Date of first admission in School", data.dateOfAdmission],
+    ["8.", "Class in which admitted", data.classAdmitted],
+    ["9.", "Class in which pupil last studied", data.classLeft],
+    ["10.", "Whether the pupil has paid all fees", "Yes"],
+    ["11.", "Reason for leaving the school", data.reasonForLeaving],
+    ["12.", "General Conduct", data.conduct],
+    ["13.", "Date of application for certificate", data.dateOfApplication],
+    ["14.", "Date of issue of certificate", data.dateOfIssue],
   ];
 
   autoTable(doc, {
-    startY: 82,
-    body: tcDetails,
+    startY: 72,
+    body: tcRows.map(r => [r[0], r[1], ":", r[2]]),
     theme: "plain",
-    styles: { fontSize: 11, font: "helvetica", textColor: BLACK, cellPadding: 3 },
+    styles: { fontSize: 10, font: "helvetica", textColor: BLACK, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
     columnStyles: {
-      0: { cellWidth: 10, fontStyle: "normal" },
-      1: { cellWidth: 72, fontStyle: "normal" },
-      2: { cellWidth: 5, fontStyle: "bold" },
-      3: { cellWidth: 88, fontStyle: "bold" }
+      0: { cellWidth: 10, fontStyle: "normal", halign: "right" },
+      1: { cellWidth: 75, fontStyle: "normal" },
+      2: { cellWidth: 5, fontStyle: "bold", halign: "center" },
+      3: { cellWidth: 85, fontStyle: "bold" },
     },
-    margin: { left: 14, right: 14 },
+    margin: { left: 15, right: 15 },
     didDrawCell: (hookData) => {
       if (hookData.section === "body") {
         const y = hookData.cell.y + hookData.cell.height;
-        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
-        doc.line(14, y, 196, y);
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.1);
+        doc.line(15, y, W - 15, y);
       }
     }
   });
 
-  // Signatures - fixed position to ensure one page
-  const sigY = 240;
-  doc.setDrawColor(...BLACK); doc.setLineWidth(0.3);
-  doc.line(18, sigY, 58, sigY);
-  doc.line(82, sigY, 125, sigY);
-  doc.line(150, sigY, 195, sigY);
+  // Remarks section
+  const tableEnd = (doc as any).lastAutoTable.finalY + 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...BLACK);
+  doc.text("Remarks:", 15, tableEnd);
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
+  doc.line(40, tableEnd, W - 15, tableEnd);
+  doc.line(15, tableEnd + 8, W - 15, tableEnd + 8);
 
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...BLACK);
-  doc.text("Signature of", 28, sigY + 5, { align: "center" });
-  doc.text("Class Teacher", 28, sigY + 10, { align: "center" });
-  doc.text("Checked By", 103, sigY + 5, { align: "center" });
-  doc.text("Principal", 172, sigY + 5, { align: "center" });
-  doc.text("(Seal)", 172, sigY + 10, { align: "center" });
+  // Signatures - positioned at fixed Y to guarantee single page
+  const sigY = 245;
+  doc.setDrawColor(...BLACK); doc.setLineWidth(0.3);
+  doc.line(18, sigY, 60, sigY);
+  doc.line(80, sigY, 128, sigY);
+  doc.line(148, sigY, 195, sigY);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(...BLACK);
+  doc.text("Signature of", 39, sigY + 5, { align: "center" });
+  doc.text("Class Teacher", 39, sigY + 10, { align: "center" });
+  doc.text("Checked By", 104, sigY + 5, { align: "center" });
+  doc.text("Principal", 171, sigY + 5, { align: "center" });
+  doc.text("(Seal)", 171, sigY + 10, { align: "center" });
+
+  // Note
+  doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...GRAY);
+  doc.text("Note: This Transfer Certificate should be presented to the new institution within 30 days of issue.", W / 2, sigY + 20, { align: "center" });
 
   // Footer
-  doc.setFillColor(...GREEN_DARK); doc.rect(9, 275, 192, 13, "F");
-  doc.setTextColor(...WHITE); doc.setFontSize(7); doc.setFont("helvetica", "normal");
-  doc.text("This is a computer-generated Transfer Certificate.", 105, 281, { align: "center" });
-  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")}`, 105, 285, { align: "center" });
+  doc.setFillColor(...GREEN_DARK); doc.rect(10, 275, W - 20, 12, "F");
+  doc.setTextColor(...WHITE); doc.setFontSize(6.5); doc.setFont("helvetica", "normal");
+  doc.text("This is a computer-generated Transfer Certificate.", W / 2, 280, { align: "center" });
+  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")} | ${SCHOOL_REG}`, W / 2, 284, { align: "center" });
 
   doc.save(`Transfer_Certificate_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
