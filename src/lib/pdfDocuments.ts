@@ -611,42 +611,102 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     margin: { left: 12, right: 12 },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 5;
+  const finalY = (doc as any).lastAutoTable.finalY + 4;
 
-  // Result summary box
+  // ── RESULT SUMMARY BOX ──
+  // Coloured left bar for PASS/FAIL
+  const isPassing = data.percentage >= 33;
+  const resultColor: [number, number, number] = isPassing ? GREEN_MID : [220, 38, 38];
+
   doc.setFillColor(245, 250, 245);
-  doc.roundedRect(12, finalY, 186, 18, 2, 2, "F");
-  doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.4);
-  doc.roundedRect(12, finalY, 186, 18, 2, 2, "S");
+  doc.roundedRect(12, finalY, 186, 28, 2, 2, "F");
+  doc.setDrawColor(...resultColor); doc.setLineWidth(0.8);
+  doc.roundedRect(12, finalY, 186, 28, 2, 2, "S");
 
-  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...BLACK);
-  doc.text("RESULT:", 16, finalY + 7);
-  doc.setTextColor(data.percentage >= 33 ? GREEN_MID[0] : 220, data.percentage >= 33 ? GREEN_MID[1] : 38, data.percentage >= 33 ? GREEN_MID[2] : 38);
-  doc.text(data.percentage >= 33 ? "PASS" : "FAIL", 38, finalY + 7);
+  // Left accent stripe
+  doc.setFillColor(...resultColor);
+  doc.roundedRect(12, finalY, 4, 28, 2, 2, "F");
 
+  // RESULT label
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...resultColor);
+  doc.text(isPassing ? "✓ PASS" : "✗ FAIL", 22, finalY + 10);
+
+  // Divider
+  doc.setDrawColor(210, 220, 210); doc.setLineWidth(0.2);
+  doc.line(50, finalY + 2, 50, finalY + 26);
+  doc.line(115, finalY + 2, 115, finalY + 26);
+  doc.line(165, finalY + 2, 165, finalY + 26);
+
+  // Total Marks
   doc.setTextColor(...BLACK);
-  doc.text(`Percentage: ${data.percentage.toFixed(1)}%`, 70, finalY + 7);
-  doc.text(`Overall Grade: ${data.overallGrade}`, 130, finalY + 7);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+  doc.text("Total Marks Obtained", 55, finalY + 8);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  const totalObtained = data.subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
+  const totalMax = data.subjects.reduce((s, r) => s + r.totalMarks, 0);
+  doc.text(`${totalObtained} / ${totalMax}`, 55, finalY + 20);
 
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GRAY);
-  doc.text("Grading: A+ (≥90) | A (≥80) | B+ (≥70) | B (≥60) | C (≥50) | D (≥40) | E (≥33) | F (<33)", 105, finalY + 14, { align: "center" });
+  // Percentage
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
+  doc.text("Percentage", 120, finalY + 8);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  doc.text(`${data.percentage.toFixed(1)}%`, 120, finalY + 20);
 
-  // Signatures
-  const sigY = finalY + 30;
-  doc.setDrawColor(...BLACK); doc.setLineWidth(0.3);
-  doc.line(15, sigY, 55, sigY);
-  doc.line(80, sigY, 125, sigY);
-  doc.line(155, sigY, 195, sigY);
+  // Grade
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
+  doc.text("Overall Grade", 170, finalY + 8);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...resultColor);
+  doc.text(data.overallGrade, 174, finalY + 20);
+
+  // ── GRADING SCALE ── (two rows so it never overflows)
+  const gradeY = finalY + 36;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
+  doc.text("Grading Scale:", 14, gradeY);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+  doc.text("A+ : 90–100%   A : 80–89%   B+ : 70–79%   B : 60–69%", 46, gradeY);
+  doc.text("C : 50–59%   D : 40–49%   E : 33–39%   F : Below 33%", 46, gradeY + 5);
+
+  // ── REMARKS ROW ──
+  const remY = gradeY + 14;
+  doc.setFillColor(248, 248, 248);
+  doc.roundedRect(12, remY, 186, 10, 1, 1, "F");
+  doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.2);
+  doc.roundedRect(12, remY, 186, 10, 1, 1, "S");
   doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...BLACK);
-  doc.text("Class Teacher", 25, sigY + 5, { align: "center" });
-  doc.text("Parent/Guardian", 102, sigY + 5, { align: "center" });
-  doc.text("Principal", 175, sigY + 5, { align: "center" });
+  doc.text("Remarks:", 16, remY + 6.5);
+  doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2);
+  doc.line(40, remY + 7, 196, remY + 7);
 
-  // Footer
-  doc.setFillColor(...GREEN_DARK); doc.rect(8, 276, 194, 13, "F");
-  doc.setTextColor(...WHITE); doc.setFontSize(6.5);
-  doc.text("This is a computer-generated Report Card.", 105, 282, { align: "center" });
-  doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN")} | ${SCHOOL_EMAIL}`, 105, 286, { align: "center" });
+  // ── SIGNATURES ──
+  const sigY = remY + 22;
+  doc.setTextColor(...BLACK);
+
+  // Three signature blocks
+  const blocks = [
+    { label: "Class Teacher", x: 12, w: 55 },
+    { label: "Parent / Guardian", x: 80, w: 58 },
+    { label: "Principal & Seal", x: 152, w: 46 },
+  ];
+  blocks.forEach(({ label, x, w }) => {
+    // Date line above signature
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRAY);
+    doc.text("Date: ____________", x, sigY);
+    // Main signature line
+    doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
+    doc.line(x, sigY + 10, x + w, sigY + 10);
+    // Label below
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...BLACK);
+    doc.text(label, x + w / 2, sigY + 15, { align: "center" });
+  });
+
+  // ── GREEN FOOTER ──
+  doc.setFillColor(...GREEN_DARK);
+  doc.rect(8, 276, 194, 13, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(8, 276, 194, 1, "F");
+  doc.setTextColor(...WHITE); doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+  doc.text("This is a computer-generated Report Card. No manual signature required.", 105, 282, { align: "center" });
+  doc.text(`${SCHOOL_ADDRESS}  |  ${SCHOOL_PHONE}  |  Generated: ${new Date().toLocaleDateString("en-IN")}`, 105, 287, { align: "center" });
 
   doc.save(`Report_Card_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
 }
