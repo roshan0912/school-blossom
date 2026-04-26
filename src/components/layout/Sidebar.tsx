@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   X,
-  School,
   Shield,
   CalendarDays,
   ClipboardList,
@@ -30,6 +29,7 @@ import {
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 const navigationSections = [
   {
@@ -127,13 +127,12 @@ export function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl text-primary-foreground overflow-hidden" style={{ background: 'var(--gradient-primary)' }}>
-              <School className="h-5 w-5 relative z-10" />
-              <div className="absolute inset-0 bg-white/10 animate-pulse-soft" />
-            </div>
-            <div>
-              <h1 className="font-bold text-sm tracking-tight leading-tight">Vedanta Valley</h1>
-              <p className="text-[11px] text-muted-foreground font-medium">Public School ERP</p>
+            <SchoolLogo size={42} />
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm tracking-tight leading-tight truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                Vedanta Valley
+              </h1>
+              <p className="text-[11px] text-muted-foreground font-medium truncate">Public School ERP</p>
             </div>
           </div>
 
