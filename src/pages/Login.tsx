@@ -3,9 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { School, Eye, EyeOff, Mail, Lock, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { SchoolLogo } from "@/components/SchoolLogo";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -76,10 +77,11 @@ export default function Login() {
 
         <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
-              <School className="h-6 w-6" />
+            <SchoolLogo size={56} className="ring-2 ring-white/40 shadow-2xl" />
+            <div>
+              <span className="text-2xl font-bold tracking-tight block leading-none" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Vedanta Valley</span>
+              <span className="text-xs text-white/70 font-medium tracking-wide uppercase">Public School</span>
             </div>
-            <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Vedanta Valley</span>
           </div>
           
           <div className="space-y-6">
@@ -104,10 +106,11 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8 animate-fade-in">
           <div className="text-center lg:text-left">
             <div className="flex items-center justify-center lg:justify-start gap-3 mb-8 lg:hidden">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl text-primary-foreground" style={{ background: 'var(--gradient-primary)' }}>
-                <School className="h-5 w-5" />
+              <SchoolLogo size={44} />
+              <div>
+                <span className="text-xl font-bold tracking-tight block leading-none">Vedanta Valley</span>
+                <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Public School</span>
               </div>
-              <span className="text-xl font-bold tracking-tight">Vedanta Valley</span>
             </div>
             <h2 className="text-3xl font-bold tracking-tight">Welcome back</h2>
             <p className="text-muted-foreground mt-2 text-[15px]">Enter your credentials to access your account</p>
