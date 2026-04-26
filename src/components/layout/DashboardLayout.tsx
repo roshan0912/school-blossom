@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 export function DashboardLayout() {
   const [isDark, setIsDark] = useState(false);
@@ -47,7 +48,8 @@ export function DashboardLayout() {
       <div className="lg:pl-[260px]">
         {/* Top header */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/50 bg-background/70 backdrop-blur-xl px-6">
-          <div className="flex-1 flex items-center gap-4 ml-12 lg:ml-0">
+          <div className="flex-1 flex items-center gap-3 ml-12 lg:ml-0">
+            <SchoolLogo size={32} className="lg:hidden" />
             <GlobalSearch />
           </div>
           
