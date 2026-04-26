@@ -2,13 +2,14 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
-import { Users, GraduationCap, Calendar, IndianRupee, BookOpen, TrendingUp, AlertCircle, ArrowRight } from "lucide-react";
+import { Users, GraduationCap, Calendar, IndianRupee, BookOpen, TrendingUp, AlertCircle, ArrowRight, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats, useTotalIncome } from "@/hooks/useDashboardStats";
 import { formatINR } from "@/lib/pdfGenerator";
 import { QuickActionDropdown } from "@/components/QuickActionDropdown";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -27,15 +28,30 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="opacity-0 animate-fade-in">
-          <p className="text-muted-foreground font-medium">{getGreeting()}</p>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">{userName} 👋</h1>
-          <p className="text-muted-foreground mt-1 text-[15px]">Here's what's happening at your school today.</p>
-        </div>
-        <div className="opacity-0 animate-fade-in" style={{ animationDelay: '100ms' }}>
-          <QuickActionDropdown />
+      {/* Hero Greeting Card */}
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 opacity-0 animate-fade-in" style={{ background: 'var(--gradient-primary)' }}>
+        {/* Decorative orbs */}
+        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-20 left-1/3 w-72 h-72 rounded-full bg-white/5 blur-3xl" />
+        <div className="absolute top-6 right-6 w-20 h-20 rounded-full bg-white/10 animate-float hidden sm:block" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-start sm:items-center gap-4">
+            <SchoolLogo size={68} className="ring-2 ring-white/40 shadow-xl shrink-0" />
+            <div className="text-white">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold uppercase tracking-wider mb-2">
+                <Sparkles className="h-3 w-3" />
+                {getGreeting()}
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                Welcome back, {userName} 👋
+              </h1>
+              <p className="text-white/80 mt-1 text-sm sm:text-[15px]">Here's what's happening at Vedanta Valley today.</p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <QuickActionDropdown />
+          </div>
         </div>
       </div>
 
