@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,47 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFeeStructures, useCreateFeeStructure, useDeleteFeeStructure, useFeeInstallments, useCreateFeeInstallment, useUpdateFeeInstallment, useDeleteFeeInstallment } from "@/hooks/useFees";
+import {
+  useFeeStructures,
+  useCreateFeeStructure,
+  useDeleteFeeStructure,
+  useFeeInstallments,
+  useCreateFeeInstallment,
+  useUpdateFeeInstallment,
+  useDeleteFeeInstallment,
+} from "@/hooks/useFees";
 import { useClasses } from "@/hooks/useClasses";
 import { useStudents } from "@/hooks/useStudents";
-import { IndianRupee, Plus, Trash2, CheckCircle2, Receipt, FileText, Download, TrendingUp, Pencil } from "lucide-react";
+import {
+  IndianRupee,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  Receipt,
+  FileText,
+  Download,
+  TrendingUp,
+  Pencil,
+  Calendar as CalendarIcon,
+  Loader2,
+  XCircle,
+} from "lucide-react";
 import { formatINR } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
-import { generateFeeReceiptPDF, generateFeeCollectionReportPDF, generateSchoolIncomeReportPDF } from "@/lib/pdfDocuments";
+import { format, parseISO } from "date-fns";
+import {
+  generateFeeReceiptPDF,
+  generateFeeCollectionReportPDF,
+  generateSchoolIncomeReportPDF,
+} from "@/lib/pdfDocuments";
 import { useTotalIncome } from "@/hooks/useDashboardStats";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { exportToExcel, exportToCSV } from "@/lib/excel";
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 export default function FeeManagement() {
   const { data: structures, isLoading: sLoading } = useFeeStructures();
@@ -30,105 +61,230 @@ export default function FeeManagement() {
   const createInstallment = useCreateFeeInstallment();
   const updateInstallment = useUpdateFeeInstallment();
   const deleteInstallment = useDeleteFeeInstallment();
+
+  // ---- Monthly tracker state ----
+  const now = new Date();
+  const [year, setYear] = useState<number>(now.getFullYear());
+  const [month, setMonth] = useState<number>(now.getMonth()); // 0-indexed
+  const [classFilter, setClassFilter] = useState<string>("all");
+  const [editAmount, setEditAmount] = useState<{ id: string; value: string } | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // ---- Structure dialog state ----
   const [structureDialog, setStructureDialog] = useState(false);
-  const [installmentDialog, setInstallmentDialog] = useState(false);
-  const [editDialog, setEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ id: "", amount: "", due_date: "", status: "pending" });
-  const [selectedStudent, setSelectedStudent] = useState<string>("");
-  const [sForm, setSForm] = useState({ name: "", fee_type: "tuition", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: "" });
-  const [iForm, setIForm] = useState({ student_id: "", fee_structure_id: "", amount: "", due_date: "" });
+  const [sForm, setSForm] = useState({ name: "", fee_type: "monthly", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: `${now.getFullYear()}-${(now.getFullYear() + 1).toString().slice(-2)}` });
 
-  const totalCollected = installments?.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0) || 0;
-  const totalPending = installments?.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0) || 0;
+  // ---- Default monthly amount per class (taken from latest fee_structure for class) ----
+  const monthlyAmountForClass = (classId: string | null | undefined): number => {
+    if (!structures || !classId) return 0;
+    const match = structures.find((s) => s.class_id === classId);
+    return match ? Number(match.amount) : 0;
+  };
 
-  // Filter installments by selected student
-  const filteredInstallments = selectedStudent
-    ? installments?.filter(i => i.student_id === selectedStudent)
-    : installments;
+  // ---- Filter installments to selected month/year and class ----
+  const monthlyRows = useMemo(() => {
+    if (!students) return [];
+    const monthInstallments = (installments || []).filter((i) => {
+      const d = parseISO(i.due_date);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+    const filteredStudents = students.filter((s) => classFilter === "all" || s.class_id === classFilter);
+    return filteredStudents.map((s) => {
+      const inst = monthInstallments.find((i) => i.student_id === s.id);
+      const className = (classes || []).find((c) => c.id === s.class_id)?.name || "—";
+      return {
+        student: s,
+        className,
+        installment: inst,
+        defaultAmount: monthlyAmountForClass(s.class_id),
+      };
+    });
+  }, [students, installments, classes, structures, year, month, classFilter]);
 
-  // Student-wise summary
-  const studentSummary = students?.map(s => {
-    const studentInstallments = installments?.filter(i => i.student_id === s.id) || [];
-    const paid = studentInstallments.filter(i => i.status === "paid").reduce((sum, i) => sum + Number(i.amount), 0);
-    const pending = studentInstallments.filter(i => i.status !== "paid").reduce((sum, i) => sum + Number(i.amount), 0);
-    return { ...s, totalFees: paid + pending, paid, pending, installmentCount: studentInstallments.length };
-  }) || [];
+  const monthlyTotals = useMemo(() => {
+    let paid = 0, pending = 0, generated = 0;
+    monthlyRows.forEach((r) => {
+      if (r.installment) {
+        generated += 1;
+        const amt = Number(r.installment.amount);
+        if (r.installment.status === "paid") paid += amt; else pending += amt;
+      }
+    });
+    return { paid, pending, generated, total: monthlyRows.length };
+  }, [monthlyRows]);
+
+  // ---- Bulk generate for selected month ----
+  const generateMonth = async () => {
+    const missing = monthlyRows.filter((r) => !r.installment && r.defaultAmount > 0);
+    if (missing.length === 0) {
+      toast.info("Nothing to generate. Set a fee structure for the class or all students already have entries.");
+      return;
+    }
+    // Pick any fee_structure for the class (required FK)
+    setBulkLoading(true);
+    const dueDate = format(new Date(year, month, 10), "yyyy-MM-dd");
+    let created = 0;
+    try {
+      for (const r of missing) {
+        const fs = (structures || []).find((s) => s.class_id === r.student.class_id);
+        if (!fs) continue;
+        await createInstallment.mutateAsync({
+          student_id: r.student.id,
+          fee_structure_id: fs.id,
+          amount: r.defaultAmount,
+          due_date: dueDate,
+          status: "pending",
+        } as any);
+        created += 1;
+      }
+      toast.success(`Generated ${created} monthly entries for ${MONTHS[month]} ${year}`);
+    } catch (e: any) {
+      toast.error("Bulk generation failed: " + (e?.message || ""));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const togglePaid = (instId: string, current: string) => {
+    if (current === "paid") {
+      updateInstallment.mutate({ id: instId, status: "pending", paid_date: null as any, receipt_number: null as any });
+    } else {
+      updateInstallment.mutate({
+        id: instId,
+        status: "paid",
+        paid_date: new Date().toISOString().split("T")[0],
+        receipt_number: `REC-${Date.now().toString(36).toUpperCase()}`,
+      });
+    }
+  };
+
+  const generateOne = async (r: typeof monthlyRows[number]) => {
+    const fs = (structures || []).find((s) => s.class_id === r.student.class_id);
+    if (!fs) {
+      toast.error("Create a fee structure for this class first");
+      return;
+    }
+    const amount = r.defaultAmount || 0;
+    if (!amount) {
+      toast.error("Set monthly amount via Fee Structure first");
+      return;
+    }
+    await createInstallment.mutateAsync({
+      student_id: r.student.id,
+      fee_structure_id: fs.id,
+      amount,
+      due_date: format(new Date(year, month, 10), "yyyy-MM-dd"),
+      status: "pending",
+    } as any);
+  };
+
+  const saveEditedAmount = () => {
+    if (!editAmount) return;
+    const amt = Number(editAmount.value);
+    if (!amt || amt < 0) { toast.error("Invalid amount"); return; }
+    updateInstallment.mutate({ id: editAmount.id, amount: amt });
+    setEditAmount(null);
+  };
+
+  // ---- Exports for monthly view ----
+  const monthlyExportRows = () =>
+    monthlyRows.map((r, i) => ({
+      sno: i + 1,
+      name: r.student.name,
+      roll: r.student.roll_no || "—",
+      className: r.className,
+      guardian: r.student.guardian_name || r.student.parent_name || "—",
+      phone: r.student.guardian_phone || r.student.phone || "—",
+      amount: r.installment ? Number(r.installment.amount) : r.defaultAmount,
+      status: r.installment ? (r.installment.status === "paid" ? "Paid" : "Pending") : "Not Generated",
+      paidDate: r.installment?.paid_date ? format(parseISO(r.installment.paid_date), "dd MMM yyyy") : "—",
+      receipt: r.installment?.receipt_number || "—",
+    }));
+
+  const periodLabel = `${MONTHS[month]} ${year}`;
+
+  const downloadMonthlyPDF = () => {
+    const entries = monthlyExportRows().map((r) => ({
+      studentName: r.name,
+      rollNo: r.roll,
+      feeType: `Monthly Fee — ${MONTHS[month]} ${year}`,
+      amount: r.amount,
+      dueDate: format(new Date(year, month, 10), "dd MMM yyyy"),
+      status: r.status.toLowerCase(),
+      receiptNo: r.receipt === "—" ? undefined : r.receipt,
+      paidDate: r.paidDate === "—" ? undefined : r.paidDate,
+    }));
+    generateFeeCollectionReportPDF({
+      period: periodLabel,
+      entries,
+      totalCollected: monthlyTotals.paid,
+      totalPending: monthlyTotals.pending,
+    });
+    toast.success("PDF downloaded");
+  };
+
+  const downloadMonthlyExcel = () => {
+    exportToExcel(monthlyExportRows() as any, [
+      { key: "sno", header: "S.No" },
+      { key: "name", header: "Student Name" },
+      { key: "roll", header: "Roll No" },
+      { key: "className", header: "Class" },
+      { key: "guardian", header: "Guardian" },
+      { key: "phone", header: "Phone" },
+      { key: "amount", header: "Amount (INR)" },
+      { key: "status", header: "Status" },
+      { key: "paidDate", header: "Paid Date" },
+      { key: "receipt", header: "Receipt No" },
+    ], `Monthly_Fees_${MONTHS[month]}_${year}`);
+    toast.success("Excel downloaded");
+  };
+
+  const downloadMonthlyCSV = () => {
+    exportToCSV(monthlyExportRows() as any, [
+      { key: "sno", header: "S.No" },
+      { key: "name", header: "Student Name" },
+      { key: "roll", header: "Roll No" },
+      { key: "className", header: "Class" },
+      { key: "guardian", header: "Guardian" },
+      { key: "phone", header: "Phone" },
+      { key: "amount", header: "Amount (INR)" },
+      { key: "status", header: "Status" },
+      { key: "paidDate", header: "Paid Date" },
+      { key: "receipt", header: "Receipt No" },
+    ], `Monthly_Fees_${MONTHS[month]}_${year}`);
+    toast.success("CSV downloaded");
+  };
+
+  const downloadReceipt = (r: typeof monthlyRows[number]) => {
+    if (!r.installment) return;
+    generateFeeReceiptPDF({
+      receiptNo: r.installment.receipt_number || `REC-${r.installment.id.slice(0, 8).toUpperCase()}`,
+      studentName: r.student.name,
+      rollNo: r.student.roll_no || "—",
+      className: r.className,
+      fatherName: r.student.parent_name || r.student.guardian_name || "—",
+      paymentDate: r.installment.paid_date
+        ? format(parseISO(r.installment.paid_date), "dd MMM yyyy")
+        : new Date().toLocaleDateString("en-IN"),
+      items: [{ description: `Monthly Fee — ${MONTHS[month]} ${year}`, amount: Number(r.installment.amount) }],
+      totalAmount: Number(r.installment.amount),
+      paymentMode: "Cash",
+    });
+  };
 
   const handleCreateStructure = () => {
     if (!sForm.name || !sForm.amount) { toast.error("Fill required fields"); return; }
     createStructure.mutate({
-      name: sForm.name, fee_type: sForm.fee_type, amount: Number(sForm.amount),
-      class_id: sForm.class_id || null, due_date: sForm.due_date || null,
-      late_fine_per_day: Number(sForm.late_fine_per_day) || 0, academic_year: sForm.academic_year || null,
+      name: sForm.name,
+      fee_type: sForm.fee_type,
+      amount: Number(sForm.amount),
+      class_id: sForm.class_id || null,
+      due_date: sForm.due_date || null,
+      late_fine_per_day: Number(sForm.late_fine_per_day) || 0,
+      academic_year: sForm.academic_year || null,
     });
     setStructureDialog(false);
-    setSForm({ name: "", fee_type: "tuition", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: "" });
-  };
-
-  const handleCreateInstallment = () => {
-    if (!iForm.student_id || !iForm.fee_structure_id || !iForm.amount || !iForm.due_date) { toast.error("Fill all fields"); return; }
-    createInstallment.mutate({ student_id: iForm.student_id, fee_structure_id: iForm.fee_structure_id, amount: Number(iForm.amount), due_date: iForm.due_date });
-    setInstallmentDialog(false);
-    setIForm({ student_id: "", fee_structure_id: "", amount: "", due_date: "" });
-  };
-
-  const markPaid = (id: string) => {
-    updateInstallment.mutate({ id, status: "paid", paid_date: new Date().toISOString().split("T")[0], receipt_number: `REC-${Date.now().toString(36).toUpperCase()}` });
-  };
-
-  const openEditDialog = (inst: any) => {
-    setEditForm({ id: inst.id, amount: String(inst.amount), due_date: inst.due_date, status: inst.status });
-    setEditDialog(true);
-  };
-
-  const handleEditInstallment = () => {
-    if (!editForm.amount || !editForm.due_date) { toast.error("Fill all fields"); return; }
-    updateInstallment.mutate({ id: editForm.id, amount: Number(editForm.amount), due_date: editForm.due_date, status: editForm.status });
-    setEditDialog(false);
-  };
-
-  const downloadFeeReport = (period: "weekly" | "monthly" | "all") => {
-    if (!installments || installments.length === 0) { toast.error("No fee data"); return; }
-    const now = new Date();
-    let filtered = installments;
-    let periodLabel = "All Time";
-
-    if (period === "monthly") {
-      const start = startOfMonth(now);
-      const end = endOfMonth(now);
-      filtered = installments.filter(i => {
-        const d = parseISO(i.due_date);
-        return isWithinInterval(d, { start, end });
-      });
-      periodLabel = format(now, "MMMM yyyy");
-    } else if (period === "weekly") {
-      const start = startOfWeek(now, { weekStartsOn: 1 });
-      const end = endOfWeek(now, { weekStartsOn: 1 });
-      filtered = installments.filter(i => {
-        const d = parseISO(i.due_date);
-        return isWithinInterval(d, { start, end });
-      });
-      periodLabel = `Week of ${format(start, "dd MMM")} - ${format(end, "dd MMM yyyy")}`;
-    }
-
-    const entries = filtered.map(i => ({
-      studentName: (i as any).students?.name || "—",
-      rollNo: (i as any).students?.roll_no || "—",
-      feeType: (i as any).fee_structures?.name || "—",
-      amount: Number(i.amount),
-      dueDate: format(parseISO(i.due_date), "dd MMM yyyy"),
-      status: i.status,
-      paidDate: i.paid_date ? format(parseISO(i.paid_date), "dd MMM yyyy") : undefined,
-      receiptNo: i.receipt_number || undefined,
-    }));
-
-    generateFeeCollectionReportPDF({
-      period: periodLabel,
-      entries,
-      totalCollected: filtered.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0),
-      totalPending: filtered.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0),
-    });
-    toast.success(`${periodLabel} report downloaded`);
+    setSForm({ ...sForm, name: "", amount: "", class_id: "", due_date: "" });
   };
 
   const downloadIncomeReport = () => {
@@ -143,84 +299,28 @@ export default function FeeManagement() {
     toast.success("Income report downloaded");
   };
 
+  // ---- Fee structure table cols ----
   const structureColumns = [
     { key: "name", label: "Fee Name", render: (i: any) => <span className="font-medium">{i.name}</span> },
     { key: "fee_type", label: "Type", render: (i: any) => <Badge variant="outline">{i.fee_type}</Badge> },
-    { key: "amount", label: "Amount", render: (i: any) => <span className="font-semibold">{formatINR(Number(i.amount))}</span> },
+    { key: "amount", label: "Monthly Amount", render: (i: any) => <span className="font-semibold">{formatINR(Number(i.amount))}</span> },
     { key: "classes", label: "Class", render: (i: any) => i.classes?.name || "All Classes" },
-    { key: "due_date", label: "Due Date", render: (i: any) => i.due_date ? format(new Date(i.due_date), "dd MMM yyyy") : "—" },
+    { key: "academic_year", label: "Academic Year", render: (i: any) => i.academic_year || "—" },
     { key: "actions", label: "Actions", render: (i: any) => (
-      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteStructure.mutate(i.id)}><Trash2 className="h-4 w-4" /></Button>
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteStructure.mutate(i.id)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
     )},
   ];
 
-  const studentFeeColumns = [
-    { key: "name", label: "Student Name", render: (i: any) => <span className="font-medium">{i.name}</span> },
-    { key: "roll_no", label: "Roll No", render: (i: any) => i.roll_no || "—" },
-    { key: "totalFees", label: "Total Fees", render: (i: any) => <span className="font-semibold">{formatINR(i.totalFees)}</span> },
-    { key: "paid", label: "Paid", render: (i: any) => <span className="text-success font-medium">{formatINR(i.paid)}</span> },
-    { key: "pending", label: "Pending", render: (i: any) => <span className="text-warning font-medium">{formatINR(i.pending)}</span> },
-    { key: "installmentCount", label: "Installments", render: (i: any) => i.installmentCount },
-    { key: "actions", label: "Actions", render: (i: any) => (
-      <Button variant="outline" size="sm" onClick={() => setSelectedStudent(i.id)}>View Details</Button>
-    )},
-  ];
-
-  const installmentColumns = [
-    { key: "student", label: "Student", render: (i: any) => <span className="font-medium">{i.students?.name || "—"}</span> },
-    { key: "fee", label: "Fee Type", render: (i: any) => i.fee_structures?.name || "—" },
-    { key: "amount", label: "Amount", render: (i: any) => formatINR(Number(i.amount)) },
-    { key: "due_date", label: "Due Date", render: (i: any) => format(new Date(i.due_date), "dd MMM yyyy") },
-    { key: "status", label: "Status", render: (i: any) => (
-      <Badge variant="outline" className={i.status === "paid" ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
-        {i.status === "paid" ? "Paid" : "Pending"}
-      </Badge>
-    )},
-    { key: "receipt_number", label: "Receipt", render: (i: any) => i.receipt_number || "—" },
-    { key: "actions", label: "Actions", render: (i: any) => (
-      <div className="flex gap-1">
-        {i.status !== "paid" ? (
-          <>
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => markPaid(i.id)}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Pay
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(i)}>
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteInstallment.mutate(i.id)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={() => {
-              generateFeeReceiptPDF({
-                receiptNo: i.receipt_number || `REC-${i.id.slice(0, 8).toUpperCase()}`,
-                studentName: i.students?.name || "—", rollNo: i.students?.roll_no || "—",
-                className: "—", fatherName: "—",
-                paymentDate: i.paid_date ? format(new Date(i.paid_date), "dd MMM yyyy") : new Date().toLocaleDateString("en-IN"),
-                items: [{ description: i.fee_structures?.name || "Fee", amount: Number(i.amount) }],
-                totalAmount: Number(i.amount), paymentMode: "Cash",
-              });
-              toast.success("Receipt generated!");
-            }}>
-              <FileText className="h-3.5 w-3.5" /> Receipt
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteInstallment.mutate(i.id)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        )}
-      </div>
-    )},
-  ];
+  const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">Fee Management</h1>
-          <p className="page-description">Student-wise fee tracking, installments, and payment receipts</p>
+          <p className="page-description">Monthly fee tracking, editable structures, and downloadable reports</p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
@@ -228,75 +328,214 @@ export default function FeeManagement() {
               <Button variant="outline" className="gap-2"><Download className="h-4 w-4" /> Reports</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => downloadFeeReport("weekly")}>Weekly Fee Report</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadFeeReport("monthly")}>Monthly Fee Report</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadFeeReport("all")}>All Fee Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadMonthlyPDF}>Monthly Fees — PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadMonthlyExcel}>Monthly Fees — Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadMonthlyCSV}>Monthly Fees — CSV</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadIncomeReport}>School Income Report</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
         <Card><CardContent className="p-6 flex items-center justify-between">
-          <div><p className="text-sm font-medium text-muted-foreground">Total Fees</p><p className="text-2xl font-bold mt-1">{formatINR(totalCollected + totalPending)}</p></div>
+          <div><p className="text-sm font-medium text-muted-foreground">{periodLabel} Total</p><p className="text-2xl font-bold mt-1">{formatINR(monthlyTotals.paid + monthlyTotals.pending)}</p></div>
           <div className="p-3 rounded-xl bg-primary/10 text-primary"><IndianRupee className="h-6 w-6" /></div>
         </CardContent></Card>
         <Card><CardContent className="p-6 flex items-center justify-between">
-          <div><p className="text-sm font-medium text-muted-foreground">Collected</p><p className="text-2xl font-bold mt-1 text-success">{formatINR(totalCollected)}</p></div>
+          <div><p className="text-sm font-medium text-muted-foreground">Collected</p><p className="text-2xl font-bold mt-1 text-success">{formatINR(monthlyTotals.paid)}</p></div>
           <div className="p-3 rounded-xl bg-success/10 text-success"><CheckCircle2 className="h-6 w-6" /></div>
         </CardContent></Card>
         <Card><CardContent className="p-6 flex items-center justify-between">
-          <div><p className="text-sm font-medium text-muted-foreground">Pending</p><p className="text-2xl font-bold mt-1 text-warning">{formatINR(totalPending)}</p></div>
+          <div><p className="text-sm font-medium text-muted-foreground">Pending</p><p className="text-2xl font-bold mt-1 text-warning">{formatINR(monthlyTotals.pending)}</p></div>
           <div className="p-3 rounded-xl bg-warning/10 text-warning"><Receipt className="h-6 w-6" /></div>
         </CardContent></Card>
         <Card><CardContent className="p-6 flex items-center justify-between">
-          <div><p className="text-sm font-medium text-muted-foreground">Net Income</p><p className="text-2xl font-bold mt-1 text-primary">{formatINR(incomeData?.netIncome || 0)}</p></div>
+          <div><p className="text-sm font-medium text-muted-foreground">Net Income (YTD)</p><p className="text-2xl font-bold mt-1 text-primary">{formatINR(incomeData?.netIncome || 0)}</p></div>
           <div className="p-3 rounded-xl bg-primary/10 text-primary"><TrendingUp className="h-6 w-6" /></div>
         </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="students">
+      <Tabs defaultValue="monthly">
         <TabsList>
-          <TabsTrigger value="students">Student-wise Fees</TabsTrigger>
-          <TabsTrigger value="structures">Fee Structures</TabsTrigger>
-          <TabsTrigger value="installments">All Installments</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly Tracker</TabsTrigger>
+          <TabsTrigger value="structures">Class Fee Structure</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="students" className="mt-4">
-          {selectedStudent ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => setSelectedStudent("")}>← Back to Students</Button>
-                <h3 className="text-lg font-semibold">{students?.find(s => s.id === selectedStudent)?.name} — Fee Details</h3>
+        {/* ============ MONTHLY TRACKER ============ */}
+        <TabsContent value="monthly" className="mt-4 space-y-4">
+          <Card>
+            <CardContent className="p-4 flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Year</Label>
+                <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectContent>{yearOptions.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
-              <DataTable data={filteredInstallments || []} columns={installmentColumns} searchPlaceholder="Search installments..." onAdd={() => { setIForm({ ...iForm, student_id: selectedStudent }); setInstallmentDialog(true); }} addLabel="Add Installment" isLoading={iLoading} />
-            </div>
-          ) : (
-            <DataTable data={studentSummary} columns={studentFeeColumns} searchPlaceholder="Search students..." isLoading={iLoading} />
-          )}
+              <div className="space-y-1">
+                <Label className="text-xs">Month</Label>
+                <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>{MONTHS.map((m, i) => <SelectItem key={m} value={String(i)}>{m}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Class</Label>
+                <Select value={classFilter} onValueChange={setClassFilter}>
+                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Classes</SelectItem>
+                    {classes?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="ml-auto flex gap-2">
+                <Button variant="outline" onClick={generateMonth} disabled={bulkLoading} className="gap-2">
+                  {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarIcon className="h-4 w-4" />}
+                  Generate {MONTHS[month]} {year}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr className="text-left">
+                      <th className="p-3 font-medium">#</th>
+                      <th className="p-3 font-medium">Student</th>
+                      <th className="p-3 font-medium">Roll</th>
+                      <th className="p-3 font-medium">Class</th>
+                      <th className="p-3 font-medium">Amount</th>
+                      <th className="p-3 font-medium">Status</th>
+                      <th className="p-3 font-medium">Paid Date</th>
+                      <th className="p-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyRows.length === 0 && (
+                      <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+                    )}
+                    {monthlyRows.map((r, i) => {
+                      const inst = r.installment;
+                      const isPaid = inst?.status === "paid";
+                      const editing = inst && editAmount?.id === inst.id;
+                      return (
+                        <tr key={r.student.id} className="border-t hover:bg-muted/30">
+                          <td className="p-3 text-muted-foreground">{i + 1}</td>
+                          <td className="p-3 font-medium">{r.student.name}</td>
+                          <td className="p-3">{r.student.roll_no || "—"}</td>
+                          <td className="p-3">{r.className}</td>
+                          <td className="p-3">
+                            {inst ? (
+                              editing ? (
+                                <div className="flex gap-1 items-center">
+                                  <Input
+                                    type="number"
+                                    className="h-8 w-24"
+                                    value={editAmount!.value}
+                                    onChange={(e) => setEditAmount({ id: inst.id, value: e.target.value })}
+                                  />
+                                  <Button size="sm" className="h-8" onClick={saveEditedAmount}>Save</Button>
+                                  <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditAmount(null)}>×</Button>
+                                </div>
+                              ) : (
+                                <button
+                                  className="font-semibold hover:underline"
+                                  onClick={() => setEditAmount({ id: inst.id, value: String(inst.amount) })}
+                                  title="Click to edit"
+                                >
+                                  {formatINR(Number(inst.amount))}
+                                </button>
+                              )
+                            ) : (
+                              <span className="text-muted-foreground italic">
+                                {r.defaultAmount > 0 ? `${formatINR(r.defaultAmount)} (default)` : "No structure"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {inst ? (
+                              <Badge variant="outline" className={isPaid
+                                ? "bg-success/10 text-success border-success/20"
+                                : "bg-warning/10 text-warning border-warning/20"}>
+                                {isPaid ? "Paid" : "Pending"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-muted/30 text-muted-foreground">Not Generated</Badge>
+                            )}
+                          </td>
+                          <td className="p-3 text-muted-foreground">
+                            {inst?.paid_date ? format(parseISO(inst.paid_date), "dd MMM yyyy") : "—"}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex gap-1 justify-end">
+                              {inst ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant={isPaid ? "outline" : "default"}
+                                    className="gap-1 h-8"
+                                    onClick={() => togglePaid(inst.id, inst.status)}
+                                  >
+                                    {isPaid ? <><XCircle className="h-3.5 w-3.5" /> Unpaid</> : <><CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid</>}
+                                  </Button>
+                                  {isPaid && (
+                                    <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={() => downloadReceipt(r)}>
+                                      <FileText className="h-3.5 w-3.5" /> Receipt
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => deleteInstallment.mutate(inst.id)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => generateOne(r)}>
+                                  <Plus className="h-3.5 w-3.5" /> Generate
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
+        {/* ============ FEE STRUCTURES ============ */}
         <TabsContent value="structures" className="mt-4">
-          <DataTable data={structures || []} columns={structureColumns} searchPlaceholder="Search fee structures..." onAdd={() => setStructureDialog(true)} addLabel="Add Fee Structure" isLoading={sLoading} />
-        </TabsContent>
-
-        <TabsContent value="installments" className="mt-4">
-          <DataTable data={installments || []} columns={installmentColumns} searchPlaceholder="Search installments..." onAdd={() => setInstallmentDialog(true)} addLabel="Add Installment" isLoading={iLoading} />
+          <DataTable
+            data={structures || []}
+            columns={structureColumns}
+            searchPlaceholder="Search fee structures..."
+            onAdd={() => setStructureDialog(true)}
+            addLabel="Add Class Fee"
+            isLoading={sLoading}
+          />
         </TabsContent>
       </Tabs>
 
       {/* Fee Structure Dialog */}
       <Dialog open={structureDialog} onOpenChange={setStructureDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Fee Structure</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Add / Edit Class Fee</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Name *</Label><Input value={sForm.name} onChange={(e) => setSForm({ ...sForm, name: e.target.value })} placeholder="e.g. Annual Tuition Fee" /></div>
+            <div><Label>Name *</Label><Input value={sForm.name} onChange={(e) => setSForm({ ...sForm, name: e.target.value })} placeholder="e.g. Monthly Tuition Fee" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Type</Label>
+              <div>
+                <Label>Type</Label>
                 <Select value={sForm.fee_type} onValueChange={(v) => setSForm({ ...sForm, fee_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="tuition">Tuition</SelectItem>
                     <SelectItem value="transport">Transport</SelectItem>
                     <SelectItem value="library">Library</SelectItem>
@@ -305,82 +544,23 @@ export default function FeeManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Amount (₹) *</Label><Input type="number" value={sForm.amount} onChange={(e) => setSForm({ ...sForm, amount: e.target.value })} /></div>
+              <div><Label>Monthly Amount (₹) *</Label><Input type="number" value={sForm.amount} onChange={(e) => setSForm({ ...sForm, amount: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Class</Label>
+              <div>
+                <Label>Class *</Label>
                 <Select value={sForm.class_id} onValueChange={(v) => setSForm({ ...sForm, class_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="All Classes" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                   <SelectContent>{classes?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Due Date</Label><Input type="date" value={sForm.due_date} onChange={(e) => setSForm({ ...sForm, due_date: e.target.value })} /></div>
+              <div><Label>Academic Year</Label><Input value={sForm.academic_year} onChange={(e) => setSForm({ ...sForm, academic_year: e.target.value })} placeholder="2025-26" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Late Fine/Day (₹)</Label><Input type="number" value={sForm.late_fine_per_day} onChange={(e) => setSForm({ ...sForm, late_fine_per_day: e.target.value })} /></div>
-              <div><Label>Academic Year</Label><Input value={sForm.academic_year} onChange={(e) => setSForm({ ...sForm, academic_year: e.target.value })} placeholder="e.g. 2025-26" /></div>
-            </div>
+            <div><Label>Late Fine / Day (₹)</Label><Input type="number" value={sForm.late_fine_per_day} onChange={(e) => setSForm({ ...sForm, late_fine_per_day: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStructureDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateStructure} className="btn-gradient">Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Installment Dialog */}
-      <Dialog open={installmentDialog} onOpenChange={setInstallmentDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Installment</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Student *</Label>
-              <Select value={iForm.student_id} onValueChange={(v) => setIForm({ ...iForm, student_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
-                <SelectContent>{students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.roll_no || "—"})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>Fee Structure *</Label>
-              <Select value={iForm.fee_structure_id} onValueChange={(v) => {
-                const fs = structures?.find(s => s.id === v);
-                setIForm({ ...iForm, fee_structure_id: v, amount: fs ? String(fs.amount) : iForm.amount });
-              }}>
-                <SelectTrigger><SelectValue placeholder="Select fee" /></SelectTrigger>
-                <SelectContent>{structures?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} — {formatINR(Number(s.amount))}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Amount (₹) *</Label><Input type="number" value={iForm.amount} onChange={(e) => setIForm({ ...iForm, amount: e.target.value })} /></div>
-              <div><Label>Due Date *</Label><Input type="date" value={iForm.due_date} onChange={(e) => setIForm({ ...iForm, due_date: e.target.value })} /></div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInstallmentDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateInstallment} className="btn-gradient">Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Installment Dialog */}
-      <Dialog open={editDialog} onOpenChange={setEditDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Edit Installment</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Amount (₹) *</Label><Input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} /></div>
-            <div><Label>Due Date *</Label><Input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} /></div>
-            <div><Label>Status</Label>
-              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialog(false)}>Cancel</Button>
-            <Button onClick={handleEditInstallment} className="btn-gradient">Save Changes</Button>
+            <Button onClick={handleCreateStructure} className="btn-gradient">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
