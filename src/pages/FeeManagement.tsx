@@ -387,6 +387,7 @@ export default function FeeManagement() {
               <DropdownMenuItem onClick={downloadMonthlyPDF}>Monthly Fees — PDF</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadMonthlyExcel}>Monthly Fees — Excel</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadMonthlyCSV}>Monthly Fees — CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadYearlyExcel}>Yearly Workbook — 12 Monthly Sheets</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadIncomeReport}>School Income Report</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
