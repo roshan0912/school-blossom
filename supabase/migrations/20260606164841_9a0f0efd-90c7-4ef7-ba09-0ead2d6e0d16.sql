@@ -1,0 +1,1 @@
+ALTER TABLE public.fee_structures ADD COLUMN IF NOT EXISTS admission_fee numeric NOT NULL DEFAULT 0;

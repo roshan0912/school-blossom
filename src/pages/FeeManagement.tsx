@@ -43,7 +43,7 @@ import {
 } from "@/lib/pdfDocuments";
 import { useTotalIncome } from "@/hooks/useDashboardStats";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { exportToExcel, exportToCSV } from "@/lib/excel";
+import { exportToExcel, exportToCSV, exportToExcelMultiSheet } from "@/lib/excel";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -72,13 +72,19 @@ export default function FeeManagement() {
 
   // ---- Structure dialog state ----
   const [structureDialog, setStructureDialog] = useState(false);
-  const [sForm, setSForm] = useState({ name: "", fee_type: "monthly", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: `${now.getFullYear()}-${(now.getFullYear() + 1).toString().slice(-2)}` });
+  const [sForm, setSForm] = useState({ name: "", fee_type: "monthly", amount: "", admission_fee: "0", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: `${now.getFullYear()}-${(now.getFullYear() + 1).toString().slice(-2)}` });
 
   // ---- Default monthly amount per class (taken from latest fee_structure for class) ----
   const monthlyAmountForClass = (classId: string | null | undefined): number => {
     if (!structures || !classId) return 0;
     const match = structures.find((s) => s.class_id === classId);
     return match ? Number(match.amount) : 0;
+  };
+
+  const admissionFeeForClass = (classId: string | null | undefined): number => {
+    if (!structures || !classId) return 0;
+    const match = structures.find((s) => s.class_id === classId);
+    return match ? Number((match as any).admission_fee || 0) : 0;
   };
 
   // ---- Filter installments to selected month/year and class ----
@@ -255,6 +261,54 @@ export default function FeeManagement() {
     toast.success("CSV downloaded");
   };
 
+  // Yearly export: one sheet per month with that month's collection
+  const downloadYearlyExcel = () => {
+    if (!students) return;
+    const filteredStudents = students.filter((s) => classFilter === "all" || s.class_id === classFilter);
+    const sheets = MONTHS.map((mName, mIdx) => {
+      const monthInst = (installments || []).filter((i) => {
+        const d = parseISO(i.due_date);
+        return d.getFullYear() === year && d.getMonth() === mIdx;
+      });
+      const data = filteredStudents.map((s, idx) => {
+        const inst = monthInst.find((i) => i.student_id === s.id);
+        const className = (classes || []).find((c) => c.id === s.class_id)?.name || "—";
+        return {
+          sno: idx + 1,
+          name: s.name,
+          roll: s.roll_no || "—",
+          className,
+          guardian: s.guardian_name || s.parent_name || "—",
+          phone: s.guardian_phone || s.phone || "—",
+          admissionFee: admissionFeeForClass(s.class_id),
+          amount: inst ? Number(inst.amount) : monthlyAmountForClass(s.class_id),
+          status: inst ? (inst.status === "paid" ? "Paid" : "Pending") : "Not Generated",
+          paidDate: inst?.paid_date ? format(parseISO(inst.paid_date), "dd MMM yyyy") : "—",
+          receipt: inst?.receipt_number || "—",
+        };
+      });
+      return {
+        sheetName: `${mName} ${year}`,
+        data: data as any,
+        columns: [
+          { key: "sno", header: "S.No" },
+          { key: "name", header: "Student Name" },
+          { key: "roll", header: "Roll No" },
+          { key: "className", header: "Class" },
+          { key: "guardian", header: "Guardian" },
+          { key: "phone", header: "Phone" },
+          { key: "admissionFee", header: "Admission Fee (INR)" },
+          { key: "amount", header: "Monthly Fee (INR)" },
+          { key: "status", header: "Status" },
+          { key: "paidDate", header: "Paid Date" },
+          { key: "receipt", header: "Receipt No" },
+        ],
+      };
+    });
+    exportToExcelMultiSheet(sheets, `Fees_Yearly_${year}`);
+    toast.success(`Yearly workbook downloaded — 12 monthly sheets for ${year}`);
+  };
+
   const downloadReceipt = (r: typeof monthlyRows[number]) => {
     if (!r.installment) return;
     generateFeeReceiptPDF({
@@ -278,13 +332,14 @@ export default function FeeManagement() {
       name: sForm.name,
       fee_type: sForm.fee_type,
       amount: Number(sForm.amount),
+      admission_fee: Number(sForm.admission_fee) || 0,
       class_id: sForm.class_id || null,
       due_date: sForm.due_date || null,
       late_fine_per_day: Number(sForm.late_fine_per_day) || 0,
       academic_year: sForm.academic_year || null,
-    });
+    } as any);
     setStructureDialog(false);
-    setSForm({ ...sForm, name: "", amount: "", class_id: "", due_date: "" });
+    setSForm({ ...sForm, name: "", amount: "", admission_fee: "0", class_id: "", due_date: "" });
   };
 
   const downloadIncomeReport = () => {
@@ -304,6 +359,7 @@ export default function FeeManagement() {
     { key: "name", label: "Fee Name", render: (i: any) => <span className="font-medium">{i.name}</span> },
     { key: "fee_type", label: "Type", render: (i: any) => <Badge variant="outline">{i.fee_type}</Badge> },
     { key: "amount", label: "Monthly Amount", render: (i: any) => <span className="font-semibold">{formatINR(Number(i.amount))}</span> },
+    { key: "admission_fee", label: "Admission Fee", render: (i: any) => <span className="font-semibold text-primary">{formatINR(Number(i.admission_fee || 0))}</span> },
     { key: "classes", label: "Class", render: (i: any) => i.classes?.name || "All Classes" },
     { key: "academic_year", label: "Academic Year", render: (i: any) => i.academic_year || "—" },
     { key: "actions", label: "Actions", render: (i: any) => (
@@ -331,6 +387,7 @@ export default function FeeManagement() {
               <DropdownMenuItem onClick={downloadMonthlyPDF}>Monthly Fees — PDF</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadMonthlyExcel}>Monthly Fees — Excel</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadMonthlyCSV}>Monthly Fees — CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadYearlyExcel}>Yearly Workbook — 12 Monthly Sheets</DropdownMenuItem>
               <DropdownMenuItem onClick={downloadIncomeReport}>School Income Report</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -556,7 +613,10 @@ export default function FeeManagement() {
               </div>
               <div><Label>Academic Year</Label><Input value={sForm.academic_year} onChange={(e) => setSForm({ ...sForm, academic_year: e.target.value })} placeholder="2025-26" /></div>
             </div>
-            <div><Label>Late Fine / Day (₹)</Label><Input type="number" value={sForm.late_fine_per_day} onChange={(e) => setSForm({ ...sForm, late_fine_per_day: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Admission Fee (₹) — one time</Label><Input type="number" value={sForm.admission_fee} onChange={(e) => setSForm({ ...sForm, admission_fee: e.target.value })} placeholder="0" /></div>
+              <div><Label>Late Fine / Day (₹)</Label><Input type="number" value={sForm.late_fine_per_day} onChange={(e) => setSForm({ ...sForm, late_fine_per_day: e.target.value })} /></div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStructureDialog(false)}>Cancel</Button>
