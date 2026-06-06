@@ -261,6 +261,54 @@ export default function FeeManagement() {
     toast.success("CSV downloaded");
   };
 
+  // Yearly export: one sheet per month with that month's collection
+  const downloadYearlyExcel = () => {
+    if (!students) return;
+    const filteredStudents = students.filter((s) => classFilter === "all" || s.class_id === classFilter);
+    const sheets = MONTHS.map((mName, mIdx) => {
+      const monthInst = (installments || []).filter((i) => {
+        const d = parseISO(i.due_date);
+        return d.getFullYear() === year && d.getMonth() === mIdx;
+      });
+      const data = filteredStudents.map((s, idx) => {
+        const inst = monthInst.find((i) => i.student_id === s.id);
+        const className = (classes || []).find((c) => c.id === s.class_id)?.name || "—";
+        return {
+          sno: idx + 1,
+          name: s.name,
+          roll: s.roll_no || "—",
+          className,
+          guardian: s.guardian_name || s.parent_name || "—",
+          phone: s.guardian_phone || s.phone || "—",
+          admissionFee: admissionFeeForClass(s.class_id),
+          amount: inst ? Number(inst.amount) : monthlyAmountForClass(s.class_id),
+          status: inst ? (inst.status === "paid" ? "Paid" : "Pending") : "Not Generated",
+          paidDate: inst?.paid_date ? format(parseISO(inst.paid_date), "dd MMM yyyy") : "—",
+          receipt: inst?.receipt_number || "—",
+        };
+      });
+      return {
+        sheetName: `${mName} ${year}`,
+        data: data as any,
+        columns: [
+          { key: "sno", header: "S.No" },
+          { key: "name", header: "Student Name" },
+          { key: "roll", header: "Roll No" },
+          { key: "className", header: "Class" },
+          { key: "guardian", header: "Guardian" },
+          { key: "phone", header: "Phone" },
+          { key: "admissionFee", header: "Admission Fee (INR)" },
+          { key: "amount", header: "Monthly Fee (INR)" },
+          { key: "status", header: "Status" },
+          { key: "paidDate", header: "Paid Date" },
+          { key: "receipt", header: "Receipt No" },
+        ],
+      };
+    });
+    exportToExcelMultiSheet(sheets, `Fees_Yearly_${year}`);
+    toast.success(`Yearly workbook downloaded — 12 monthly sheets for ${year}`);
+  };
+
   const downloadReceipt = (r: typeof monthlyRows[number]) => {
     if (!r.installment) return;
     generateFeeReceiptPDF({
