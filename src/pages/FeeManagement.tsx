@@ -72,7 +72,7 @@ export default function FeeManagement() {
 
   // ---- Structure dialog state ----
   const [structureDialog, setStructureDialog] = useState(false);
-  const [sForm, setSForm] = useState({ name: "", fee_type: "monthly", amount: "", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: `${now.getFullYear()}-${(now.getFullYear() + 1).toString().slice(-2)}` });
+  const [sForm, setSForm] = useState({ name: "", fee_type: "monthly", amount: "", admission_fee: "0", class_id: "", due_date: "", late_fine_per_day: "0", academic_year: `${now.getFullYear()}-${(now.getFullYear() + 1).toString().slice(-2)}` });
 
   // ---- Default monthly amount per class (taken from latest fee_structure for class) ----
   const monthlyAmountForClass = (classId: string | null | undefined): number => {
