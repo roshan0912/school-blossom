@@ -43,7 +43,7 @@ import {
 } from "@/lib/pdfDocuments";
 import { useTotalIncome } from "@/hooks/useDashboardStats";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { exportToExcel, exportToCSV } from "@/lib/excel";
+import { exportToExcel, exportToCSV, exportToExcelMultiSheet } from "@/lib/excel";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
