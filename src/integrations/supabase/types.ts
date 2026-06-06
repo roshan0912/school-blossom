@@ -294,6 +294,7 @@ export type Database = {
       fee_structures: {
         Row: {
           academic_year: string | null
+          admission_fee: number
           amount: number
           class_id: string | null
           created_at: string
@@ -306,6 +307,7 @@ export type Database = {
         }
         Insert: {
           academic_year?: string | null
+          admission_fee?: number
           amount?: number
           class_id?: string | null
           created_at?: string
@@ -318,6 +320,7 @@ export type Database = {
         }
         Update: {
           academic_year?: string | null
+          admission_fee?: number
           amount?: number
           class_id?: string | null
           created_at?: string
