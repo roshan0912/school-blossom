@@ -54,6 +54,40 @@ export function exportToExcel<T extends Record<string, unknown>>(
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
+export interface SheetSpec {
+  sheetName: string;
+  data: Record<string, unknown>[];
+  columns: ExcelColumn[];
+}
+
+export function exportToExcelMultiSheet(sheets: SheetSpec[], filename: string) {
+  const wb = XLSX.utils.book_new();
+  for (const sheet of sheets) {
+    const headers = sheet.columns.map((c) => c.header);
+    const rows = sheet.data.map((item) =>
+      sheet.columns.map((col) => {
+        if (col.key.includes(".")) {
+          const keys = col.key.split(".");
+          let v: unknown = item;
+          for (const k of keys) v = (v as Record<string, unknown>)?.[k];
+          return v ?? "";
+        }
+        return item[col.key] ?? "";
+      }),
+    );
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws["!cols"] = headers.map((h, i) => ({
+      wch: Math.min(
+        Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length)) + 2,
+        50,
+      ),
+    }));
+    const safeName = sheet.sheetName.replace(/[\\/?*[\]:]/g, " ").slice(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, safeName);
+  }
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
 export function exportToCSV<T extends Record<string, unknown>>(
   data: T[],
   columns: ExcelColumn[],
