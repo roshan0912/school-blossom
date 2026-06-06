@@ -359,6 +359,7 @@ export default function FeeManagement() {
     { key: "name", label: "Fee Name", render: (i: any) => <span className="font-medium">{i.name}</span> },
     { key: "fee_type", label: "Type", render: (i: any) => <Badge variant="outline">{i.fee_type}</Badge> },
     { key: "amount", label: "Monthly Amount", render: (i: any) => <span className="font-semibold">{formatINR(Number(i.amount))}</span> },
+    { key: "admission_fee", label: "Admission Fee", render: (i: any) => <span className="font-semibold text-primary">{formatINR(Number(i.admission_fee || 0))}</span> },
     { key: "classes", label: "Class", render: (i: any) => i.classes?.name || "All Classes" },
     { key: "academic_year", label: "Academic Year", render: (i: any) => i.academic_year || "—" },
     { key: "actions", label: "Actions", render: (i: any) => (
