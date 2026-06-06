@@ -332,13 +332,14 @@ export default function FeeManagement() {
       name: sForm.name,
       fee_type: sForm.fee_type,
       amount: Number(sForm.amount),
+      admission_fee: Number(sForm.admission_fee) || 0,
       class_id: sForm.class_id || null,
       due_date: sForm.due_date || null,
       late_fine_per_day: Number(sForm.late_fine_per_day) || 0,
       academic_year: sForm.academic_year || null,
-    });
+    } as any);
     setStructureDialog(false);
-    setSForm({ ...sForm, name: "", amount: "", class_id: "", due_date: "" });
+    setSForm({ ...sForm, name: "", amount: "", admission_fee: "0", class_id: "", due_date: "" });
   };
 
   const downloadIncomeReport = () => {
