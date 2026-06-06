@@ -613,7 +613,10 @@ export default function FeeManagement() {
               </div>
               <div><Label>Academic Year</Label><Input value={sForm.academic_year} onChange={(e) => setSForm({ ...sForm, academic_year: e.target.value })} placeholder="2025-26" /></div>
             </div>
-            <div><Label>Late Fine / Day (₹)</Label><Input type="number" value={sForm.late_fine_per_day} onChange={(e) => setSForm({ ...sForm, late_fine_per_day: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Admission Fee (₹) — one time</Label><Input type="number" value={sForm.admission_fee} onChange={(e) => setSForm({ ...sForm, admission_fee: e.target.value })} placeholder="0" /></div>
+              <div><Label>Late Fine / Day (₹)</Label><Input type="number" value={sForm.late_fine_per_day} onChange={(e) => setSForm({ ...sForm, late_fine_per_day: e.target.value })} /></div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStructureDialog(false)}>Cancel</Button>
