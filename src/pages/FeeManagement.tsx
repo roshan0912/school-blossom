@@ -81,6 +81,12 @@ export default function FeeManagement() {
     return match ? Number(match.amount) : 0;
   };
 
+  const admissionFeeForClass = (classId: string | null | undefined): number => {
+    if (!structures || !classId) return 0;
+    const match = structures.find((s) => s.class_id === classId);
+    return match ? Number((match as any).admission_fee || 0) : 0;
+  };
+
   // ---- Filter installments to selected month/year and class ----
   const monthlyRows = useMemo(() => {
     if (!students) return [];
