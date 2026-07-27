@@ -577,15 +577,17 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     doc.setFont("helvetica", "bold"); doc.text(label, x, y);
     doc.setFont("helvetica", "normal"); doc.text(value || "—", x + doc.getTextWidth(label) + 2, y);
   };
-  f("Student Name:", data.studentName, 12, 60);
-  f("Class:", data.className, 12, 67);
-  f("Roll No:", data.rollNo, 80, 67);
-  f("Father's Name:", data.fatherName, 12, 74);
-  f("Mother's Name:", data.motherName, 12, 81);
-  f("D.O.B:", data.dob, 12, 88);
-  f("Academic Year:", data.academicYear, 80, 88);
-  f("Height:", data.height + " cm", 12, 95);
-  f("Weight:", data.weight + " kg", 80, 95);
+  f("Student Name:", data.studentName, 12, 63);
+  f("Class:", data.className, 12, 70);
+  f("Roll No:", data.rollNo, 80, 70);
+  f("House Name:", data.houseName || "—", 118, 70);
+  f("Father's Name:", data.fatherName, 12, 77);
+  f("Mother's Name:", data.motherName, 12, 84);
+  f("D.O.B:", data.dob, 12, 91);
+  f("Academic Year:", data.academicYear, 80, 91);
+  f("Height:", data.height + " cm", 12, 98);
+  f("Weight:", data.weight + " kg", 80, 98);
+
 
   // Marks table with 4 exam columns
   autoTable(doc, {
