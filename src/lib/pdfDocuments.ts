@@ -746,7 +746,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.text("This is a computer-generated Report Card. No manual signature required.", 105, 282, { align: "center" });
   doc.text(`${SCHOOL_ADDRESS}  |  ${SCHOOL_PHONE}  |  Generated: ${new Date().toLocaleDateString("en-IN")}`, 105, 287, { align: "center" });
 
-  doc.save(`Report_Card_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
+  doc.save(`${isFinal ? "Final_Report_Card" : "Report_Card_UT1_HalfYearly"}_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
 }
 
 // ============== MARKSHEET (Legacy export for backward compatibility) ==============
