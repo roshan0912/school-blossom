@@ -589,22 +589,31 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   f("Weight:", data.weight + " kg", 80, 98);
 
 
-  // Marks table with 4 exam columns
+  // Marks table — exam columns depend on the report card version
+  const examCols = isFinal
+    ? ["1st UT", "Half Yearly", "2nd UT", "Annual"]
+    : ["1st UT", "Half Yearly"];
+  const subjObtained = (s: ReportCardData["subjects"][number]) =>
+    isFinal ? s.ut1 + s.halfYearly + s.ut2 + s.annual : s.ut1 + s.halfYearly;
+  const subjMax = (s: ReportCardData["subjects"][number]) => s.totalMarks * examCols.length;
+
   autoTable(doc, {
-    startY: 102,
-    head: [["S.No.", "Subject", "Total", "1st UT", "Half Yearly", "2nd UT", "Annual", "Total Obt.", "Grade"]],
+    startY: 105,
+    head: [["S.No.", "Subject", "Max (each)", ...examCols, "Total Obt.", "Out Of", "Grade"]],
     body: data.subjects.map((s, i) => {
-      const totalObt = s.ut1 + s.halfYearly + s.ut2 + s.annual;
-      const pct = s.totalMarks > 0 ? (totalObt / s.totalMarks) * 100 : 0;
+      const totalObt = subjObtained(s);
+      const max = subjMax(s);
+      const pct = max > 0 ? (totalObt / max) * 100 : 0;
+      const examVals = isFinal
+        ? [s.ut1, s.halfYearly, s.ut2, s.annual]
+        : [s.ut1, s.halfYearly];
       return [
         (i + 1).toString(),
         s.subject,
         String(s.totalMarks),
-        String(s.ut1),
-        String(s.halfYearly),
-        String(s.ut2),
-        String(s.annual),
+        ...examVals.map((v) => String(v)),
         String(totalObt),
+        String(max),
         calculateGrade(pct),
       ];
     }),
@@ -612,19 +621,32 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
     bodyStyles: { fontSize: 8, halign: "center" },
     alternateRowStyles: { fillColor: [245, 250, 245] },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      1: { halign: "left", cellWidth: 35 },
-      2: { cellWidth: 14 },
-      3: { cellWidth: 16 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 16 },
-      6: { cellWidth: 18 },
-      7: { cellWidth: 22 },
-      8: { cellWidth: 14 },
-    },
+    columnStyles: isFinal
+      ? {
+          0: { cellWidth: 10 },
+          1: { halign: "left", cellWidth: 33 },
+          2: { cellWidth: 17 },
+          3: { cellWidth: 15 },
+          4: { cellWidth: 21 },
+          5: { cellWidth: 15 },
+          6: { cellWidth: 17 },
+          7: { cellWidth: 20 },
+          8: { cellWidth: 16 },
+          9: { cellWidth: 14 },
+        }
+      : {
+          0: { cellWidth: 14 },
+          1: { halign: "left", cellWidth: 56 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 26 },
+          5: { cellWidth: 24 },
+          6: { cellWidth: 20 },
+          7: { cellWidth: 16 },
+        },
     margin: { left: 12, right: 12 },
   });
+
 
   const finalY = (doc as any).lastAutoTable.finalY + 4;
 
