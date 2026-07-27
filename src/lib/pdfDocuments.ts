@@ -545,10 +545,18 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.setFillColor(...GOLD); doc.rect(8, 40, 194, 1.5, "F");
 
   // Title
+  const isFinal = (data.variant ?? "final") === "final";
+  const titleText = isFinal ? "FINAL REPORT CARD" : "REPORT CARD";
+  const subTitleText = isFinal
+    ? "Cumulative Result — 1st Unit Test, Half Yearly, 2nd Unit Test & Annual Examination"
+    : "1st Unit Test & Half Yearly Examination";
   doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  doc.text("REPORT CARD", 105, 50, { align: "center" });
+  doc.text(titleText, 105, 49, { align: "center" });
   doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
-  doc.line(60, 52, 150, 52);
+  doc.line(55, 51, 155, 51);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+  doc.text(subTitleText, 105, 55, { align: "center" });
+
 
   // Student photo (right side)
   if (data.photoUrl) {
