@@ -679,8 +679,9 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
   doc.text("Total Marks Obtained", 55, finalY + 8);
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  const totalObtained = data.subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
-  const totalMax = data.subjects.reduce((s, r) => s + r.totalMarks, 0);
+  const totalObtained = data.subjects.reduce((s, r) => s + subjObtained(r), 0);
+  const totalMax = data.subjects.reduce((s, r) => s + subjMax(r), 0);
+
   doc.text(`${totalObtained} / ${totalMax}`, 55, finalY + 20);
 
   // Percentage
