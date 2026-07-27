@@ -101,7 +101,10 @@ export default function MarksheetGenerator() {
       studentName: selectedStudent.name,
       rollNo: selectedStudent.roll_no || "—",
       className: (selectedStudent as any).classes?.name || "—",
+      houseName: houseName || "—",
+      variant,
       academicYear,
+
       dob: selectedStudent.date_of_birth || "—",
       fatherName: selectedStudent.parent_name || "—",
       motherName: (selectedStudent as any).mother_name || "—",
