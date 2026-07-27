@@ -495,6 +495,7 @@ interface ReportCardData {
   studentName: string;
   rollNo: string;
   className: string;
+  houseName?: string;
   academicYear: string;
   dob: string;
   fatherName: string;
@@ -502,6 +503,8 @@ interface ReportCardData {
   height: string;
   weight: string;
   photoUrl?: string | null;
+  /** "midterm" = 1st Unit Test + Half Yearly only. "final" = all four exams. */
+  variant?: "midterm" | "final";
   subjects: Array<{
     subject: string;
     totalMarks: number;
@@ -513,6 +516,7 @@ interface ReportCardData {
   overallGrade: string;
   percentage: number;
 }
+
 
 export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
@@ -541,10 +545,18 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.setFillColor(...GOLD); doc.rect(8, 40, 194, 1.5, "F");
 
   // Title
+  const isFinal = (data.variant ?? "final") === "final";
+  const titleText = isFinal ? "FINAL REPORT CARD" : "REPORT CARD";
+  const subTitleText = isFinal
+    ? "Cumulative Result — 1st Unit Test, Half Yearly, 2nd Unit Test & Annual Examination"
+    : "1st Unit Test & Half Yearly Examination";
   doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  doc.text("REPORT CARD", 105, 50, { align: "center" });
+  doc.text(titleText, 105, 49, { align: "center" });
   doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
-  doc.line(60, 52, 150, 52);
+  doc.line(55, 51, 155, 51);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+  doc.text(subTitleText, 105, 55, { align: "center" });
+
 
   // Student photo (right side)
   if (data.photoUrl) {
@@ -552,8 +564,9 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
       const imgData = await loadImageAsBase64(data.photoUrl);
       if (imgData) {
         doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
-        doc.rect(168, 56, 28, 34, "S");
-        doc.addImage(imgData, "JPEG", 168.5, 56.5, 27, 33);
+        doc.rect(168, 58, 28, 34, "S");
+        doc.addImage(imgData, "JPEG", 168.5, 58.5, 27, 33);
+
       }
     } catch {}
   }
@@ -564,32 +577,43 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     doc.setFont("helvetica", "bold"); doc.text(label, x, y);
     doc.setFont("helvetica", "normal"); doc.text(value || "—", x + doc.getTextWidth(label) + 2, y);
   };
-  f("Student Name:", data.studentName, 12, 60);
-  f("Class:", data.className, 12, 67);
-  f("Roll No:", data.rollNo, 80, 67);
-  f("Father's Name:", data.fatherName, 12, 74);
-  f("Mother's Name:", data.motherName, 12, 81);
-  f("D.O.B:", data.dob, 12, 88);
-  f("Academic Year:", data.academicYear, 80, 88);
-  f("Height:", data.height + " cm", 12, 95);
-  f("Weight:", data.weight + " kg", 80, 95);
+  f("Student Name:", data.studentName, 12, 63);
+  f("Class:", data.className, 12, 70);
+  f("Roll No:", data.rollNo, 80, 70);
+  f("House Name:", data.houseName || "—", 118, 70);
+  f("Father's Name:", data.fatherName, 12, 77);
+  f("Mother's Name:", data.motherName, 12, 84);
+  f("D.O.B:", data.dob, 12, 91);
+  f("Academic Year:", data.academicYear, 80, 91);
+  f("Height:", data.height + " cm", 12, 98);
+  f("Weight:", data.weight + " kg", 80, 98);
 
-  // Marks table with 4 exam columns
+
+  // Marks table — exam columns depend on the report card version
+  const examCols = isFinal
+    ? ["1st UT", "Half Yearly", "2nd UT", "Annual"]
+    : ["1st UT", "Half Yearly"];
+  const subjObtained = (s: ReportCardData["subjects"][number]) =>
+    isFinal ? s.ut1 + s.halfYearly + s.ut2 + s.annual : s.ut1 + s.halfYearly;
+  const subjMax = (s: ReportCardData["subjects"][number]) => s.totalMarks * examCols.length;
+
   autoTable(doc, {
-    startY: 102,
-    head: [["S.No.", "Subject", "Total", "1st UT", "Half Yearly", "2nd UT", "Annual", "Total Obt.", "Grade"]],
+    startY: 105,
+    head: [["S.No.", "Subject", "Max (each)", ...examCols, "Total Obt.", "Out Of", "Grade"]],
     body: data.subjects.map((s, i) => {
-      const totalObt = s.ut1 + s.halfYearly + s.ut2 + s.annual;
-      const pct = s.totalMarks > 0 ? (totalObt / s.totalMarks) * 100 : 0;
+      const totalObt = subjObtained(s);
+      const max = subjMax(s);
+      const pct = max > 0 ? (totalObt / max) * 100 : 0;
+      const examVals = isFinal
+        ? [s.ut1, s.halfYearly, s.ut2, s.annual]
+        : [s.ut1, s.halfYearly];
       return [
         (i + 1).toString(),
         s.subject,
         String(s.totalMarks),
-        String(s.ut1),
-        String(s.halfYearly),
-        String(s.ut2),
-        String(s.annual),
+        ...examVals.map((v) => String(v)),
         String(totalObt),
+        String(max),
         calculateGrade(pct),
       ];
     }),
@@ -597,19 +621,32 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
     bodyStyles: { fontSize: 8, halign: "center" },
     alternateRowStyles: { fillColor: [245, 250, 245] },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      1: { halign: "left", cellWidth: 35 },
-      2: { cellWidth: 14 },
-      3: { cellWidth: 16 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 16 },
-      6: { cellWidth: 18 },
-      7: { cellWidth: 22 },
-      8: { cellWidth: 14 },
-    },
+    columnStyles: isFinal
+      ? {
+          0: { cellWidth: 10 },
+          1: { halign: "left", cellWidth: 33 },
+          2: { cellWidth: 17 },
+          3: { cellWidth: 15 },
+          4: { cellWidth: 21 },
+          5: { cellWidth: 15 },
+          6: { cellWidth: 17 },
+          7: { cellWidth: 20 },
+          8: { cellWidth: 16 },
+          9: { cellWidth: 14 },
+        }
+      : {
+          0: { cellWidth: 14 },
+          1: { halign: "left", cellWidth: 56 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 26 },
+          5: { cellWidth: 24 },
+          6: { cellWidth: 20 },
+          7: { cellWidth: 16 },
+        },
     margin: { left: 12, right: 12 },
   });
+
 
   const finalY = (doc as any).lastAutoTable.finalY + 4;
 
@@ -642,8 +679,9 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
   doc.text("Total Marks Obtained", 55, finalY + 8);
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  const totalObtained = data.subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
-  const totalMax = data.subjects.reduce((s, r) => s + r.totalMarks, 0);
+  const totalObtained = data.subjects.reduce((s, r) => s + subjObtained(r), 0);
+  const totalMax = data.subjects.reduce((s, r) => s + subjMax(r), 0);
+
   doc.text(`${totalObtained} / ${totalMax}`, 55, finalY + 20);
 
   // Percentage
@@ -708,7 +746,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.text("This is a computer-generated Report Card. No manual signature required.", 105, 282, { align: "center" });
   doc.text(`${SCHOOL_ADDRESS}  |  ${SCHOOL_PHONE}  |  Generated: ${new Date().toLocaleDateString("en-IN")}`, 105, 287, { align: "center" });
 
-  doc.save(`Report_Card_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
+  doc.save(`${isFinal ? "Final_Report_Card" : "Report_Card_UT1_HalfYearly"}_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
 }
 
 // ============== MARKSHEET (Legacy export for backward compatibility) ==============

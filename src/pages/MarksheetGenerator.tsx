@@ -37,6 +37,8 @@ export default function MarksheetGenerator() {
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [academicYear, setAcademicYear] = useState("2025-2026");
+  const [houseName, setHouseName] = useState("");
+  const [variant, setVariant] = useState<"midterm" | "final">("final");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [subjects, setSubjects] = useState<SubjectRow[]>(
@@ -49,6 +51,9 @@ export default function MarksheetGenerator() {
       annual: 0,
     }))
   );
+
+  const isFinal = variant === "final";
+  const examCount = isFinal ? 4 : 2;
 
   const selectedStudent = useMemo(
     () => students?.find((s) => s.id === selectedStudentId),
@@ -71,10 +76,14 @@ export default function MarksheetGenerator() {
     setSubjects(updated);
   };
 
-  const totalObtained = subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
-  const totalMax = subjects.reduce((s, r) => s + r.totalMarks, 0);
+  const totalObtained = subjects.reduce(
+    (s, r) => s + r.ut1 + r.halfYearly + (isFinal ? r.ut2 + r.annual : 0),
+    0
+  );
+  const totalMax = subjects.reduce((s, r) => s + r.totalMarks * examCount, 0);
   const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
   const overallGrade = calculateGrade(percentage);
+
 
   const handleGenerate = async () => {
     if (!selectedStudent) {
@@ -92,7 +101,10 @@ export default function MarksheetGenerator() {
       studentName: selectedStudent.name,
       rollNo: selectedStudent.roll_no || "—",
       className: (selectedStudent as any).classes?.name || "—",
+      houseName: houseName || "—",
+      variant,
       academicYear,
+
       dob: selectedStudent.date_of_birth || "—",
       fatherName: selectedStudent.parent_name || "—",
       motherName: (selectedStudent as any).mother_name || "—",
@@ -150,6 +162,14 @@ export default function MarksheetGenerator() {
             </Select>
           </div>
           <div className="space-y-1">
+            <Label>House Name</Label>
+            <Input
+              value={houseName}
+              onChange={(e) => setHouseName(e.target.value)}
+              placeholder="e.g. Red House"
+            />
+          </div>
+          <div className="space-y-1">
             <Label>Academic Year</Label>
             <Input
               value={academicYear}
@@ -157,7 +177,19 @@ export default function MarksheetGenerator() {
               placeholder="e.g. 2025-2026"
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Report Card Version</Label>
+            <Select value={variant} onValueChange={(v) => setVariant(v as "midterm" | "final")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="midterm">Version 1 — 1st Unit Test + Half Yearly</SelectItem>
+                <SelectItem value="final">Version 2 — Final (all four examinations)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2">
             <div className="space-y-1">
               <Label>Height (cm)</Label>
               <Input value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 120" />
@@ -168,6 +200,7 @@ export default function MarksheetGenerator() {
             </div>
           </div>
         </div>
+
 
         {/* Selected Student Info */}
         {selectedStudent && (
@@ -205,69 +238,82 @@ export default function MarksheetGenerator() {
           </div>
 
           <div className="overflow-x-auto">
-            <div className="min-w-[700px] space-y-2">
-              <div className="grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-                <span>Subject</span>
-                <span className="text-center">Total</span>
-                <span className="text-center">1st UT</span>
-                <span className="text-center">Half Yearly</span>
-                <span className="text-center">2nd UT</span>
-                <span className="text-center">Annual</span>
-                <span></span>
-              </div>
-              {subjects.map((s, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2 items-center">
-                  <Input
-                    placeholder="Subject name"
-                    value={s.subject}
-                    onChange={(e) => updateSubject(i, "subject", e.target.value)}
-                  />
-                  <Input
-                    type="number"
-                    value={s.totalMarks || ""}
-                    onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.ut1 || ""}
-                    onChange={(e) => updateSubject(i, "ut1", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.halfYearly || ""}
-                    onChange={(e) => updateSubject(i, "halfYearly", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.ut2 || ""}
-                    onChange={(e) => updateSubject(i, "ut2", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.annual || ""}
-                    onChange={(e) => updateSubject(i, "annual", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeSubject(i)}
-                    disabled={subjects.length === 1}
-                    className="text-destructive h-8 w-8"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+            <div className={`${isFinal ? "min-w-[700px]" : "min-w-[520px]"} space-y-2`}>
+              {(() => {
+                const gridCls = isFinal
+                  ? "grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2"
+                  : "grid grid-cols-[1fr_80px_80px_100px_40px] gap-2";
+                return (
+                  <>
+                    <div className={`${gridCls} text-xs font-medium text-muted-foreground px-1`}>
+                      <span>Subject</span>
+                      <span className="text-center">Total</span>
+                      <span className="text-center">1st UT</span>
+                      <span className="text-center">Half Yearly</span>
+                      {isFinal && <span className="text-center">2nd UT</span>}
+                      {isFinal && <span className="text-center">Annual</span>}
+                      <span></span>
+                    </div>
+                    {subjects.map((s, i) => (
+                      <div key={i} className={`${gridCls} items-center`}>
+                        <Input
+                          placeholder="Subject name"
+                          value={s.subject}
+                          onChange={(e) => updateSubject(i, "subject", e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          value={s.totalMarks || ""}
+                          onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
+                          className="text-center"
+                        />
+                        <Input
+                          type="number"
+                          value={s.ut1 || ""}
+                          onChange={(e) => updateSubject(i, "ut1", e.target.value)}
+                          max={s.totalMarks}
+                          className="text-center"
+                        />
+                        <Input
+                          type="number"
+                          value={s.halfYearly || ""}
+                          onChange={(e) => updateSubject(i, "halfYearly", e.target.value)}
+                          max={s.totalMarks}
+                          className="text-center"
+                        />
+                        {isFinal && (
+                          <Input
+                            type="number"
+                            value={s.ut2 || ""}
+                            onChange={(e) => updateSubject(i, "ut2", e.target.value)}
+                            max={s.totalMarks}
+                            className="text-center"
+                          />
+                        )}
+                        {isFinal && (
+                          <Input
+                            type="number"
+                            value={s.annual || ""}
+                            onChange={(e) => updateSubject(i, "annual", e.target.value)}
+                            max={s.totalMarks}
+                            className="text-center"
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSubject(i)}
+                          disabled={subjects.length === 1}
+                          className="text-destructive h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
