@@ -624,7 +624,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     columnStyles: isFinal
       ? {
           0: { cellWidth: 10 },
-          1: { halign: "left", cellWidth: 33 },
+          1: { halign: "left", cellWidth: 41 },
           2: { cellWidth: 17 },
           3: { cellWidth: 15 },
           4: { cellWidth: 21 },
@@ -635,16 +635,18 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
           9: { cellWidth: 14 },
         }
       : {
-          0: { cellWidth: 14 },
-          1: { halign: "left", cellWidth: 56 },
-          2: { cellWidth: 22 },
-          3: { cellWidth: 22 },
+          0: { cellWidth: 12 },
+          1: { halign: "left", cellWidth: 52 },
+          2: { cellWidth: 20 },
+          3: { cellWidth: 20 },
           4: { cellWidth: 26 },
-          5: { cellWidth: 24 },
-          6: { cellWidth: 20 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 18 },
           7: { cellWidth: 16 },
         },
+    tableWidth: 186,
     margin: { left: 12, right: 12 },
+
   });
 
 
@@ -666,7 +668,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
 
   // RESULT label
   doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...resultColor);
-  doc.text(isPassing ? "✓ PASS" : "✗ FAIL", 22, finalY + 10);
+  doc.text(isPassing ? "PASS" : "FAIL", 22, finalY + 10);
 
   // Divider
   doc.setDrawColor(210, 220, 210); doc.setLineWidth(0.2);
