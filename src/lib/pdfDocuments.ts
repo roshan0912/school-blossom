@@ -495,6 +495,7 @@ interface ReportCardData {
   studentName: string;
   rollNo: string;
   className: string;
+  houseName?: string;
   academicYear: string;
   dob: string;
   fatherName: string;
@@ -502,6 +503,8 @@ interface ReportCardData {
   height: string;
   weight: string;
   photoUrl?: string | null;
+  /** "midterm" = 1st Unit Test + Half Yearly only. "final" = all four exams. */
+  variant?: "midterm" | "final";
   subjects: Array<{
     subject: string;
     totalMarks: number;
@@ -513,6 +516,7 @@ interface ReportCardData {
   overallGrade: string;
   percentage: number;
 }
+
 
 export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
