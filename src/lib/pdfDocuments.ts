@@ -668,7 +668,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
 
   // RESULT label
   doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...resultColor);
-  doc.text(isPassing ? "✓ PASS" : "✗ FAIL", 22, finalY + 10);
+  doc.text(isPassing ? "PASS" : "FAIL", 22, finalY + 10);
 
   // Divider
   doc.setDrawColor(210, 220, 210); doc.setLineWidth(0.2);
