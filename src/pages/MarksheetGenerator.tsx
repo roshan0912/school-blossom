@@ -162,6 +162,14 @@ export default function MarksheetGenerator() {
             </Select>
           </div>
           <div className="space-y-1">
+            <Label>House Name</Label>
+            <Input
+              value={houseName}
+              onChange={(e) => setHouseName(e.target.value)}
+              placeholder="e.g. Red House"
+            />
+          </div>
+          <div className="space-y-1">
             <Label>Academic Year</Label>
             <Input
               value={academicYear}
@@ -169,7 +177,19 @@ export default function MarksheetGenerator() {
               placeholder="e.g. 2025-2026"
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Report Card Version</Label>
+            <Select value={variant} onValueChange={(v) => setVariant(v as "midterm" | "final")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="midterm">Version 1 — 1st Unit Test + Half Yearly</SelectItem>
+                <SelectItem value="final">Version 2 — Final (all four examinations)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2">
             <div className="space-y-1">
               <Label>Height (cm)</Label>
               <Input value={height} onChange={(e) => setHeight(e.target.value)} placeholder="e.g. 120" />
@@ -180,6 +200,7 @@ export default function MarksheetGenerator() {
             </div>
           </div>
         </div>
+
 
         {/* Selected Student Info */}
         {selectedStudent && (
