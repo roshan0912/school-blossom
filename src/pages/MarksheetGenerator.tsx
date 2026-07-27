@@ -238,58 +238,85 @@ export default function MarksheetGenerator() {
           </div>
 
           <div className="overflow-x-auto">
-            <div className="min-w-[700px] space-y-2">
-              <div className="grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-                <span>Subject</span>
-                <span className="text-center">Total</span>
-                <span className="text-center">1st UT</span>
-                <span className="text-center">Half Yearly</span>
-                <span className="text-center">2nd UT</span>
-                <span className="text-center">Annual</span>
-                <span></span>
-              </div>
-              {subjects.map((s, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2 items-center">
-                  <Input
-                    placeholder="Subject name"
-                    value={s.subject}
-                    onChange={(e) => updateSubject(i, "subject", e.target.value)}
-                  />
-                  <Input
-                    type="number"
-                    value={s.totalMarks || ""}
-                    onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.ut1 || ""}
-                    onChange={(e) => updateSubject(i, "ut1", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.halfYearly || ""}
-                    onChange={(e) => updateSubject(i, "halfYearly", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.ut2 || ""}
-                    onChange={(e) => updateSubject(i, "ut2", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Input
-                    type="number"
-                    value={s.annual || ""}
-                    onChange={(e) => updateSubject(i, "annual", e.target.value)}
-                    max={s.totalMarks}
-                    className="text-center"
-                  />
-                  <Button
+            <div className={`${isFinal ? "min-w-[700px]" : "min-w-[520px]"} space-y-2`}>
+              {(() => {
+                const gridCls = isFinal
+                  ? "grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2"
+                  : "grid grid-cols-[1fr_80px_80px_100px_40px] gap-2";
+                return (
+                  <>
+                    <div className={`${gridCls} text-xs font-medium text-muted-foreground px-1`}>
+                      <span>Subject</span>
+                      <span className="text-center">Total</span>
+                      <span className="text-center">1st UT</span>
+                      <span className="text-center">Half Yearly</span>
+                      {isFinal && <span className="text-center">2nd UT</span>}
+                      {isFinal && <span className="text-center">Annual</span>}
+                      <span></span>
+                    </div>
+                    {subjects.map((s, i) => (
+                      <div key={i} className={`${gridCls} items-center`}>
+                        <Input
+                          placeholder="Subject name"
+                          value={s.subject}
+                          onChange={(e) => updateSubject(i, "subject", e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          value={s.totalMarks || ""}
+                          onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
+                          className="text-center"
+                        />
+                        <Input
+                          type="number"
+                          value={s.ut1 || ""}
+                          onChange={(e) => updateSubject(i, "ut1", e.target.value)}
+                          max={s.totalMarks}
+                          className="text-center"
+                        />
+                        <Input
+                          type="number"
+                          value={s.halfYearly || ""}
+                          onChange={(e) => updateSubject(i, "halfYearly", e.target.value)}
+                          max={s.totalMarks}
+                          className="text-center"
+                        />
+                        {isFinal && (
+                          <Input
+                            type="number"
+                            value={s.ut2 || ""}
+                            onChange={(e) => updateSubject(i, "ut2", e.target.value)}
+                            max={s.totalMarks}
+                            className="text-center"
+                          />
+                        )}
+                        {isFinal && (
+                          <Input
+                            type="number"
+                            value={s.annual || ""}
+                            onChange={(e) => updateSubject(i, "annual", e.target.value)}
+                            max={s.totalMarks}
+                            className="text-center"
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSubject(i)}
+                          disabled={subjects.length === 1}
+                          className="text-destructive h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
                     type="button"
                     variant="ghost"
                     size="icon"
