@@ -564,8 +564,9 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
       const imgData = await loadImageAsBase64(data.photoUrl);
       if (imgData) {
         doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
-        doc.rect(168, 56, 28, 34, "S");
-        doc.addImage(imgData, "JPEG", 168.5, 56.5, 27, 33);
+        doc.rect(168, 58, 28, 34, "S");
+        doc.addImage(imgData, "JPEG", 168.5, 58.5, 27, 33);
+
       }
     } catch {}
   }
