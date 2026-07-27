@@ -37,6 +37,8 @@ export default function MarksheetGenerator() {
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [academicYear, setAcademicYear] = useState("2025-2026");
+  const [houseName, setHouseName] = useState("");
+  const [variant, setVariant] = useState<"midterm" | "final">("final");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [subjects, setSubjects] = useState<SubjectRow[]>(
@@ -49,6 +51,9 @@ export default function MarksheetGenerator() {
       annual: 0,
     }))
   );
+
+  const isFinal = variant === "final";
+  const examCount = isFinal ? 4 : 2;
 
   const selectedStudent = useMemo(
     () => students?.find((s) => s.id === selectedStudentId),
@@ -71,10 +76,14 @@ export default function MarksheetGenerator() {
     setSubjects(updated);
   };
 
-  const totalObtained = subjects.reduce((s, r) => s + r.ut1 + r.halfYearly + r.ut2 + r.annual, 0);
-  const totalMax = subjects.reduce((s, r) => s + r.totalMarks, 0);
+  const totalObtained = subjects.reduce(
+    (s, r) => s + r.ut1 + r.halfYearly + (isFinal ? r.ut2 + r.annual : 0),
+    0
+  );
+  const totalMax = subjects.reduce((s, r) => s + r.totalMarks * examCount, 0);
   const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
   const overallGrade = calculateGrade(percentage);
+
 
   const handleGenerate = async () => {
     if (!selectedStudent) {
