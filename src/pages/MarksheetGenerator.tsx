@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Download, Loader2 } from "lucide-react";
+import { Plus, Trash2, Download, Loader2, Save, CheckCircle2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,6 +16,7 @@ import { generateReportCardPDF } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useReportCard, useSaveReportCard } from "@/hooks/useReportCards";
 
 interface SubjectRow {
   subject: string;
@@ -41,6 +42,8 @@ export default function MarksheetGenerator() {
   const [variant, setVariant] = useState<"midterm" | "final">("final");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
+  const [totalDays, setTotalDays] = useState("");
+  const [presentDays, setPresentDays] = useState("");
   const [subjects, setSubjects] = useState<SubjectRow[]>(
     DEFAULT_SUBJECTS.map((s) => ({
       subject: s,
@@ -51,6 +54,27 @@ export default function MarksheetGenerator() {
       annual: 0,
     }))
   );
+
+  const { data: savedCard, isFetching: loadingSaved } = useReportCard(
+    selectedStudentId,
+    academicYear
+  );
+  const saveCard = useSaveReportCard();
+
+  // Load previously saved marks whenever a student / year is picked
+  useEffect(() => {
+    if (!selectedStudentId) return;
+    if (savedCard) {
+      setHouseName(savedCard.house_name || "");
+      setHeight(savedCard.height || "");
+      setWeight(savedCard.weight || "");
+      setTotalDays(savedCard.total_days ? String(savedCard.total_days) : "");
+      setPresentDays(savedCard.present_days ? String(savedCard.present_days) : "");
+      if (Array.isArray(savedCard.subjects) && savedCard.subjects.length > 0) {
+        setSubjects(savedCard.subjects);
+      }
+    }
+  }, [savedCard, selectedStudentId]);
 
   const isFinal = variant === "final";
   const examCount = isFinal ? 4 : 2;
@@ -85,6 +109,25 @@ export default function MarksheetGenerator() {
   const overallGrade = calculateGrade(percentage);
 
 
+  const buildPayload = () => ({
+    student_id: selectedStudentId,
+    academic_year: academicYear,
+    house_name: houseName,
+    height,
+    weight,
+    total_days: Number(totalDays) || 0,
+    present_days: Number(presentDays) || 0,
+    subjects: subjects.filter((s) => s.subject.trim()),
+  });
+
+  const handleSave = async () => {
+    if (!selectedStudentId) {
+      toast.error("Please select a student");
+      return;
+    }
+    await saveCard.mutateAsync(buildPayload());
+  };
+
   const handleGenerate = async () => {
     if (!selectedStudent) {
       toast.error("Please select a student");
@@ -110,6 +153,8 @@ export default function MarksheetGenerator() {
       motherName: (selectedStudent as any).mother_name || "—",
       height: height || "—",
       weight: weight || "—",
+      totalDays: Number(totalDays) || 0,
+      presentDays: Number(presentDays) || 0,
       photoUrl: selectedStudent.photo_url,
       subjects: validSubjects.map((s) => ({
         subject: s.subject,
@@ -122,6 +167,15 @@ export default function MarksheetGenerator() {
       overallGrade,
       percentage,
     });
+
+    // Auto-save so marks stay available for the annual report card
+    if (selectedStudentId) {
+      try {
+        await saveCard.mutateAsync(buildPayload());
+      } catch {
+        /* save errors are already reported */
+      }
+    }
 
     toast.success("Report Card generated!");
   };
@@ -197,6 +251,28 @@ export default function MarksheetGenerator() {
             <div className="space-y-1">
               <Label>Weight (kg)</Label>
               <Input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g. 30" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+            <div className="space-y-1">
+              <Label>Total Session Days</Label>
+              <Input
+                type="number"
+                min={0}
+                value={totalDays}
+                onChange={(e) => setTotalDays(e.target.value)}
+                placeholder="e.g. 220"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Days Present</Label>
+              <Input
+                type="number"
+                min={0}
+                value={presentDays}
+                onChange={(e) => setPresentDays(e.target.value)}
+                placeholder="e.g. 205"
+              />
             </div>
           </div>
         </div>
