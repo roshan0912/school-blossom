@@ -502,6 +502,8 @@ interface ReportCardData {
   motherName: string;
   height: string;
   weight: string;
+  totalDays?: number;
+  presentDays?: number;
   photoUrl?: string | null;
   /** "midterm" = 1st Unit Test + Half Yearly only. "final" = all four exams. */
   variant?: "midterm" | "final";
@@ -586,7 +588,16 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   f("D.O.B:", data.dob, 12, 91);
   f("Academic Year:", data.academicYear, 80, 91);
   f("Height:", data.height + " cm", 12, 98);
-  f("Weight:", data.weight + " kg", 80, 98);
+  f("Weight:", data.weight + " kg", 60, 98);
+  const totalDays = Number(data.totalDays || 0);
+  const presentDays = Number(data.presentDays || 0);
+  const attPct = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
+  f(
+    "Attendance:",
+    totalDays > 0 ? `${presentDays} / ${totalDays} days (${attPct.toFixed(1)}%)` : "—",
+    108,
+    98
+  );
 
 
   // Marks table — exam columns depend on the report card version
