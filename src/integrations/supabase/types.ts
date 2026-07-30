@@ -755,6 +755,56 @@ export type Database = {
         }
         Relationships: []
       }
+      report_cards: {
+        Row: {
+          academic_year: string
+          created_at: string
+          height: string | null
+          house_name: string | null
+          id: string
+          present_days: number
+          student_id: string
+          subjects: Json
+          total_days: number
+          updated_at: string
+          weight: string | null
+        }
+        Insert: {
+          academic_year?: string
+          created_at?: string
+          height?: string | null
+          house_name?: string | null
+          id?: string
+          present_days?: number
+          student_id: string
+          subjects?: Json
+          total_days?: number
+          updated_at?: string
+          weight?: string | null
+        }
+        Update: {
+          academic_year?: string
+          created_at?: string
+          height?: string | null
+          house_name?: string | null
+          id?: string
+          present_days?: number
+          student_id?: string
+          subjects?: Json
+          total_days?: number
+          updated_at?: string
+          weight?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_cards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salary_payments: {
         Row: {
           amount: number
