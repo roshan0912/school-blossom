@@ -430,10 +430,44 @@ export default function MarksheetGenerator() {
           </div>
         </div>
 
-        {/* Generate Button */}
-        <Button onClick={handleGenerate} className="w-full gap-2" size="lg" disabled={!selectedStudentId}>
-          <Download className="h-5 w-5" /> Generate & Download Report Card
-        </Button>
+        {/* Save status */}
+        {selectedStudentId && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            {loadingSaved ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking saved marks...
+              </>
+            ) : savedCard ? (
+              <>
+                <CheckCircle2 className="h-3 w-3 text-success" /> Saved marks loaded for{" "}
+                {academicYear} — edit and save again to update.
+              </>
+            ) : (
+              <>No saved marks yet for {academicYear}. Save to reuse them for the annual report card.</>
+            )}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            onClick={handleSave}
+            className="gap-2"
+            size="lg"
+            disabled={!selectedStudentId || saveCard.isPending}
+          >
+            {saveCard.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Save className="h-5 w-5" />
+            )}
+            Save Marks
+          </Button>
+          <Button onClick={handleGenerate} className="w-full gap-2" size="lg" disabled={!selectedStudentId}>
+            <Download className="h-5 w-5" /> Save & Generate PDF
+          </Button>
+        </div>
       </div>
     </div>
   );
