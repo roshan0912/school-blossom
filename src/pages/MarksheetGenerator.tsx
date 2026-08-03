@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Download, Loader2, Save, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Download, Loader2, Save, CheckCircle2, Pencil, FileText } from "lucide-react";
 import {
   Select,
   SelectContent,
