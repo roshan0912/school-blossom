@@ -42,6 +42,39 @@ export function useReportCard(studentId?: string, academicYear?: string) {
   });
 }
 
+export function useSavedReportCards() {
+  return useQuery({
+    queryKey: ["report_cards_all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("report_cards")
+        .select("*, students(name, roll_no, classes(name))")
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as (SavedReportCard & {
+        students: { name: string; roll_no: string | null; classes: { name: string } | null } | null;
+      })[];
+    },
+  });
+}
+
+export function useDeleteReportCard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("report_cards").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["report_cards_all"] });
+      queryClient.invalidateQueries({ queryKey: ["report_card"] });
+      toast.success("Saved report card deleted");
+    },
+    onError: (error: Error) => toast.error("Failed to delete: " + error.message),
+  });
+}
+
 export function useSaveReportCard() {
   const queryClient = useQueryClient();
 
