@@ -16,7 +16,12 @@ import { generateReportCardPDF } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { useReportCard, useSaveReportCard } from "@/hooks/useReportCards";
+import {
+  useReportCard,
+  useSaveReportCard,
+  useSavedReportCards,
+  useDeleteReportCard,
+} from "@/hooks/useReportCards";
 
 interface SubjectRow {
   subject: string;
