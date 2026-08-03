@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Download, Loader2, Save, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Download, Loader2, Save, CheckCircle2, Pencil, FileText } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,7 +16,12 @@ import { generateReportCardPDF } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { useReportCard, useSaveReportCard } from "@/hooks/useReportCards";
+import {
+  useReportCard,
+  useSaveReportCard,
+  useSavedReportCards,
+  useDeleteReportCard,
+} from "@/hooks/useReportCards";
 
 interface SubjectRow {
   subject: string;
@@ -60,6 +65,14 @@ export default function MarksheetGenerator() {
     academicYear
   );
   const saveCard = useSaveReportCard();
+  const { data: savedCards, isLoading: savedListLoading } = useSavedReportCards();
+  const deleteCard = useDeleteReportCard();
+
+  const loadSavedCard = (studentId: string, year: string) => {
+    setSelectedStudentId(studentId);
+    setAcademicYear(year);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Load previously saved marks whenever a student / year is picked
   useEffect(() => {
@@ -468,6 +481,103 @@ export default function MarksheetGenerator() {
             <Download className="h-5 w-5" /> Save & Generate PDF
           </Button>
         </div>
+      </div>
+
+      {/* Saved Report Cards */}
+      <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Saved Report Cards
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Open any saved record to review, edit the marks or regenerate the PDF.
+            </p>
+          </div>
+          {savedCards && <Badge variant="outline">{savedCards.length} saved</Badge>}
+        </div>
+
+        {savedListLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading saved records...
+          </div>
+        ) : !savedCards || savedCards.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No saved report cards yet. Save marks above and they will appear here.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="text-xs text-muted-foreground border-b">
+                  <th className="text-left py-2 px-2 font-medium">Student</th>
+                  <th className="text-left py-2 px-2 font-medium">Class</th>
+                  <th className="text-left py-2 px-2 font-medium">Year</th>
+                  <th className="text-left py-2 px-2 font-medium">Subjects</th>
+                  <th className="text-left py-2 px-2 font-medium">Attendance</th>
+                  <th className="text-right py-2 px-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savedCards.map((rc) => {
+                  const active =
+                    rc.student_id === selectedStudentId && rc.academic_year === academicYear;
+                  return (
+                    <tr
+                      key={rc.id}
+                      className={`border-b last:border-0 transition-colors ${
+                        active ? "bg-primary/5" : "hover:bg-muted/30"
+                      }`}
+                    >
+                      <td className="py-2 px-2 font-medium">
+                        {rc.students?.name || "—"}
+                        {rc.students?.roll_no ? (
+                          <span className="text-muted-foreground font-normal">
+                            {" "}
+                            ({rc.students.roll_no})
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-2 px-2">{rc.students?.classes?.name || "—"}</td>
+                      <td className="py-2 px-2">{rc.academic_year}</td>
+                      <td className="py-2 px-2">
+                        {Array.isArray(rc.subjects) ? rc.subjects.length : 0}
+                      </td>
+                      <td className="py-2 px-2">
+                        {rc.total_days > 0 ? `${rc.present_days}/${rc.total_days}` : "—"}
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => loadSavedCard(rc.student_id, rc.academic_year)}
+                          >
+                            <Pencil className="h-3 w-3" /> Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive h-8 w-8"
+                            disabled={deleteCard.isPending}
+                            onClick={() => {
+                              if (confirm("Delete this saved report card?")) {
+                                deleteCard.mutate(rc.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
