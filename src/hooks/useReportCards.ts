@@ -101,6 +101,7 @@ export function useSaveReportCard() {
       queryClient.invalidateQueries({
         queryKey: ["report_card", vars.student_id, vars.academic_year],
       });
+      queryClient.invalidateQueries({ queryKey: ["report_cards_all"] });
       toast.success("Marks saved — you can edit them anytime");
     },
     onError: (error: Error) => {
