@@ -65,6 +65,14 @@ export default function MarksheetGenerator() {
     academicYear
   );
   const saveCard = useSaveReportCard();
+  const { data: savedCards, isLoading: savedListLoading } = useSavedReportCards();
+  const deleteCard = useDeleteReportCard();
+
+  const loadSavedCard = (studentId: string, year: string) => {
+    setSelectedStudentId(studentId);
+    setAcademicYear(year);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Load previously saved marks whenever a student / year is picked
   useEffect(() => {
