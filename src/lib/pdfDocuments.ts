@@ -490,7 +490,32 @@ export async function generatePickupPassPDF(data: PickupPassData): Promise<void>
   doc.save(`Pickup_Pass_${data.studentName.replace(/\s+/g, "_")}.pdf`);
 }
 
-// ============== REPORT CARD (4 Exam Columns) ==============
+// ============== REPORT CARD ==============
+export type ReportVariant =
+  | "ut1"
+  | "halfYearly"
+  | "ut2"
+  | "annual"
+  | "midterm"
+  | "final";
+
+export interface ReportSubjectRow {
+  subject: string;
+  /** Max marks for term exams (Half Yearly / Annual). Default 100 */
+  totalMarks: number;
+  /** Max marks for unit tests. Default 50 */
+  utMarks?: number;
+  ut1: number;
+  halfYearly: number;
+  ut2: number;
+  annual: number;
+  /** Grade-based (Play Group / Nursery) letters per exam */
+  gUt1?: string;
+  gHalfYearly?: string;
+  gUt2?: string;
+  gAnnual?: string;
+}
+
 interface ReportCardData {
   studentName: string;
   rollNo: string;
@@ -505,24 +530,59 @@ interface ReportCardData {
   totalDays?: number;
   presentDays?: number;
   photoUrl?: string | null;
-  /** "midterm" = 1st Unit Test + Half Yearly only. "final" = all four exams. */
-  variant?: "midterm" | "final";
-  subjects: Array<{
-    subject: string;
-    totalMarks: number;
-    ut1: number;
-    halfYearly: number;
-    ut2: number;
-    annual: number;
-  }>;
+  variant?: ReportVariant;
+  /** "grades" for Play Group / Nursery (A, B, C ... only) */
+  mode?: "marks" | "grades";
+  subjects: ReportSubjectRow[];
   overallGrade: string;
   percentage: number;
 }
 
+type ExamKey = "ut1" | "halfYearly" | "ut2" | "annual";
+
+const EXAM_META: Record<ExamKey, { short: string; long: string; isUT: boolean; gradeKey: keyof ReportSubjectRow }> = {
+  ut1: { short: "1st UT", long: "1st Unit Test", isUT: true, gradeKey: "gUt1" },
+  halfYearly: { short: "Half Yearly", long: "Half Yearly Examination", isUT: false, gradeKey: "gHalfYearly" },
+  ut2: { short: "2nd UT", long: "2nd Unit Test", isUT: true, gradeKey: "gUt2" },
+  annual: { short: "Annual", long: "Annual Examination", isUT: false, gradeKey: "gAnnual" },
+};
+
+export const VARIANT_EXAMS: Record<ReportVariant, ExamKey[]> = {
+  ut1: ["ut1"],
+  halfYearly: ["halfYearly"],
+  ut2: ["ut2"],
+  annual: ["annual"],
+  midterm: ["ut1", "halfYearly"],
+  final: ["ut1", "halfYearly", "ut2", "annual"],
+};
+
+export const VARIANT_TITLES: Record<ReportVariant, { title: string; subtitle: string; file: string }> = {
+  ut1: { title: "UNIT TEST REPORT", subtitle: "1st Unit Test", file: "Report_1st_Unit_Test" },
+  halfYearly: { title: "HALF YEARLY REPORT", subtitle: "Half Yearly Examination", file: "Report_Half_Yearly" },
+  ut2: { title: "UNIT TEST REPORT", subtitle: "2nd Unit Test", file: "Report_2nd_Unit_Test" },
+  annual: { title: "ANNUAL EXAM REPORT", subtitle: "Annual Examination", file: "Report_Annual_Exam" },
+  midterm: {
+    title: "REPORT CARD",
+    subtitle: "1st Unit Test & Half Yearly Examination",
+    file: "Report_Card_UT1_HalfYearly",
+  },
+  final: {
+    title: "FINAL REPORT CARD",
+    subtitle: "Cumulative Result - 1st Unit Test, Half Yearly, 2nd Unit Test & Annual Examination",
+    file: "Final_Report_Card",
+  },
+};
+
+export const examMaxFor = (s: ReportSubjectRow, key: ExamKey) =>
+  EXAM_META[key].isUT ? Number(s.utMarks ?? 50) : Number(s.totalMarks ?? 100);
 
 export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
   const logo = await getSchoolLogo();
+  const variant: ReportVariant = data.variant ?? "final";
+  const exams = VARIANT_EXAMS[variant];
+  const isGradeMode = data.mode === "grades";
+  const meta = VARIANT_TITLES[variant];
 
   // Double border
   doc.setDrawColor(...NAVY); doc.setLineWidth(1.5);
@@ -547,18 +607,17 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.setFillColor(...GOLD); doc.rect(8, 40, 194, 1.5, "F");
 
   // Title
-  const isFinal = (data.variant ?? "final") === "final";
-  const titleText = isFinal ? "FINAL REPORT CARD" : "REPORT CARD";
-  const subTitleText = isFinal
-    ? "Cumulative Result — 1st Unit Test, Half Yearly, 2nd Unit Test & Annual Examination"
-    : "1st Unit Test & Half Yearly Examination";
   doc.setTextColor(...GREEN_DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  doc.text(titleText, 105, 49, { align: "center" });
+  doc.text(meta.title, 105, 49, { align: "center" });
   doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
   doc.line(55, 51, 155, 51);
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
-  doc.text(subTitleText, 105, 55, { align: "center" });
-
+  doc.text(
+    isGradeMode ? `${meta.subtitle}  (Grade Based Assessment)` : meta.subtitle,
+    105,
+    55,
+    { align: "center" }
+  );
 
   // Student photo (right side)
   if (data.photoUrl) {
@@ -568,7 +627,6 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
         doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
         doc.rect(168, 58, 28, 34, "S");
         doc.addImage(imgData, "JPEG", 168.5, 58.5, 27, 33);
-
       }
     } catch {}
   }
@@ -599,73 +657,98 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
     98
   );
 
+  const TABLE_W = 186;
+  const subjObtained = (s: ReportSubjectRow) =>
+    exams.reduce((sum, k) => sum + Number(s[k] || 0), 0);
+  const subjMax = (s: ReportSubjectRow) =>
+    exams.reduce((sum, k) => sum + examMaxFor(s, k), 0);
 
-  // Marks table — exam columns depend on the report card version
-  const examCols = isFinal
-    ? ["1st UT", "Half Yearly", "2nd UT", "Annual"]
-    : ["1st UT", "Half Yearly"];
-  const subjObtained = (s: ReportCardData["subjects"][number]) =>
-    isFinal ? s.ut1 + s.halfYearly + s.ut2 + s.annual : s.ut1 + s.halfYearly;
-  const subjMax = (s: ReportCardData["subjects"][number]) => s.totalMarks * examCols.length;
+  if (isGradeMode) {
+    // ── GRADE BASED TABLE (Play Group / Nursery) ──
+    const head = [["S.No.", "Subject / Activity", ...exams.map((k) => EXAM_META[k].short)]];
+    const snoW = 14;
+    const subjW = 70;
+    const gradeW = (TABLE_W - snoW - subjW) / exams.length;
+    const colStyles: Record<number, any> = {
+      0: { cellWidth: snoW },
+      1: { halign: "left", cellWidth: subjW },
+    };
+    exams.forEach((_, i) => {
+      colStyles[i + 2] = { cellWidth: gradeW, fontStyle: "bold" };
+    });
 
-  autoTable(doc, {
-    startY: 105,
-    head: [["S.No.", "Subject", "Max (each)", ...examCols, "Total Obt.", "Out Of", "Grade"]],
-    body: data.subjects.map((s, i) => {
-      const totalObt = subjObtained(s);
-      const max = subjMax(s);
-      const pct = max > 0 ? (totalObt / max) * 100 : 0;
-      const examVals = isFinal
-        ? [s.ut1, s.halfYearly, s.ut2, s.annual]
-        : [s.ut1, s.halfYearly];
-      return [
-        (i + 1).toString(),
+    autoTable(doc, {
+      startY: 105,
+      head,
+      body: data.subjects.map((s, i) => [
+        String(i + 1),
         s.subject,
-        String(s.totalMarks),
-        ...examVals.map((v) => String(v)),
-        String(totalObt),
-        String(max),
-        calculateGrade(pct),
-      ];
-    }),
-    theme: "grid",
-    headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
-    bodyStyles: { fontSize: 8, halign: "center" },
-    alternateRowStyles: { fillColor: [245, 250, 245] },
-    columnStyles: isFinal
-      ? {
-          0: { cellWidth: 10 },
-          1: { halign: "left", cellWidth: 41 },
-          2: { cellWidth: 17 },
-          3: { cellWidth: 15 },
-          4: { cellWidth: 21 },
-          5: { cellWidth: 15 },
-          6: { cellWidth: 17 },
-          7: { cellWidth: 20 },
-          8: { cellWidth: 16 },
-          9: { cellWidth: 14 },
-        }
-      : {
-          0: { cellWidth: 12 },
-          1: { halign: "left", cellWidth: 52 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 20 },
-          4: { cellWidth: 26 },
-          5: { cellWidth: 22 },
-          6: { cellWidth: 18 },
-          7: { cellWidth: 16 },
-        },
-    tableWidth: 186,
-    margin: { left: 12, right: 12 },
+        ...exams.map((k) => String(s[EXAM_META[k].gradeKey] || "—")),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8.5, halign: "center" },
+      bodyStyles: { fontSize: 9, halign: "center", minCellHeight: 8 },
+      alternateRowStyles: { fillColor: [245, 250, 245] },
+      columnStyles: colStyles,
+      tableWidth: TABLE_W,
+      margin: { left: 12, right: 12 },
+    });
+  } else {
+    const head = [
+      [
+        "S.No.",
+        "Subject",
+        ...exams.map((k) => EXAM_META[k].short),
+        ...(exams.length > 1 ? ["Total Obt.", "Out Of", "Grade"] : ["Out Of", "Grade"]),
+      ],
+    ];
+    const snoW = 12;
+    const tailCols = exams.length > 1 ? 3 : 2;
+    const tailW = 18;
+    const examW = exams.length > 1 ? 20 : 26;
+    const subjW = TABLE_W - snoW - examW * exams.length - tailW * tailCols;
+    const colStyles: Record<number, any> = {
+      0: { cellWidth: snoW },
+      1: { halign: "left", cellWidth: subjW },
+    };
+    exams.forEach((_, i) => {
+      colStyles[i + 2] = { cellWidth: examW };
+    });
+    for (let t = 0; t < tailCols; t++) {
+      colStyles[2 + exams.length + t] = { cellWidth: tailW };
+    }
 
-  });
-
+    autoTable(doc, {
+      startY: 105,
+      head,
+      body: data.subjects.map((s, i) => {
+        const obt = subjObtained(s);
+        const max = subjMax(s);
+        const pct = max > 0 ? (obt / max) * 100 : 0;
+        const marks = exams.map((k) => `${Number(s[k] || 0)} / ${examMaxFor(s, k)}`);
+        return [
+          String(i + 1),
+          s.subject,
+          ...marks,
+          ...(exams.length > 1 ? [String(obt)] : []),
+          String(max),
+          calculateGrade(pct),
+        ];
+      }),
+      theme: "grid",
+      headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 7.5, halign: "center" },
+      bodyStyles: { fontSize: 8, halign: "center" },
+      alternateRowStyles: { fillColor: [245, 250, 245] },
+      columnStyles: colStyles,
+      tableWidth: TABLE_W,
+      margin: { left: 12, right: 12 },
+    });
+  }
 
   const finalY = (doc as any).lastAutoTable.finalY + 4;
 
   // ── RESULT SUMMARY BOX ──
-  // Coloured left bar for PASS/FAIL
-  const isPassing = data.percentage >= 33;
+  const isPassing = isGradeMode ? true : data.percentage >= 33;
   const resultColor: [number, number, number] = isPassing ? GREEN_MID : [220, 38, 38];
 
   doc.setFillColor(245, 250, 245);
@@ -673,49 +756,52 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.setDrawColor(...resultColor); doc.setLineWidth(0.8);
   doc.roundedRect(12, finalY, 186, 28, 2, 2, "S");
 
-  // Left accent stripe
   doc.setFillColor(...resultColor);
   doc.roundedRect(12, finalY, 4, 28, 2, 2, "F");
 
-  // RESULT label
   doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...resultColor);
-  doc.text(isPassing ? "PASS" : "FAIL", 22, finalY + 10);
+  doc.text(isGradeMode ? "PROMOTED" : isPassing ? "PASS" : "FAIL", 22, finalY + 10);
 
-  // Divider
   doc.setDrawColor(210, 220, 210); doc.setLineWidth(0.2);
   doc.line(50, finalY + 2, 50, finalY + 26);
   doc.line(115, finalY + 2, 115, finalY + 26);
   doc.line(165, finalY + 2, 165, finalY + 26);
 
-  // Total Marks
-  doc.setTextColor(...BLACK);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
-  doc.text("Total Marks Obtained", 55, finalY + 8);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
   const totalObtained = data.subjects.reduce((s, r) => s + subjObtained(r), 0);
   const totalMax = data.subjects.reduce((s, r) => s + subjMax(r), 0);
 
-  doc.text(`${totalObtained} / ${totalMax}`, 55, finalY + 20);
-
-  // Percentage
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
-  doc.text("Percentage", 120, finalY + 8);
+  doc.setTextColor(...BLACK);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+  doc.text(isGradeMode ? "Subjects / Activities" : "Total Marks Obtained", 55, finalY + 8);
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  doc.text(`${data.percentage.toFixed(1)}%`, 120, finalY + 20);
+  doc.text(
+    isGradeMode ? String(data.subjects.length) : `${totalObtained} / ${totalMax}`,
+    55,
+    finalY + 20
+  );
 
-  // Grade
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
+  doc.text(isGradeMode ? "Assessment" : "Percentage", 120, finalY + 8);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  doc.text(isGradeMode ? "Grade Based" : `${data.percentage.toFixed(1)}%`, 120, finalY + 20);
+
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
   doc.text("Overall Grade", 170, finalY + 8);
   doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...resultColor);
-  doc.text(data.overallGrade, 174, finalY + 20);
+  doc.text(data.overallGrade || "—", 174, finalY + 20);
 
-  // ── GRADING SCALE ── (two rows so it never overflows)
+  // ── GRADING SCALE ──
   const gradeY = finalY + 36;
   doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(...BLACK);
   doc.text("Grading Scale:", 14, gradeY);
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
-  doc.text("A+ : 90–100%   A : 80–89%   B+ : 70–79%   B : 60–69%", 46, gradeY);
-  doc.text("C : 50–59%   D : 40–49%   E : 33–39%   F : Below 33%", 46, gradeY + 5);
+  if (isGradeMode) {
+    doc.text("A+ : Outstanding    A : Excellent    B : Very Good    C : Good", 46, gradeY);
+    doc.text("D : Satisfactory    E : Needs Improvement", 46, gradeY + 5);
+  } else {
+    doc.text("A+ : 90–100%   A : 80–89%   B+ : 70–79%   B : 60–69%", 46, gradeY);
+    doc.text("C : 50–59%   D : 40–49%   E : 33–39%   F : Below 33%", 46, gradeY + 5);
+  }
 
   // ── REMARKS ROW ──
   const remY = gradeY + 14;
@@ -731,21 +817,16 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   // ── SIGNATURES ──
   const sigY = remY + 22;
   doc.setTextColor(...BLACK);
-
-  // Three signature blocks
   const blocks = [
     { label: "Class Teacher", x: 12, w: 55 },
     { label: "Parent / Guardian", x: 80, w: 58 },
     { label: "Principal & Seal", x: 152, w: 46 },
   ];
   blocks.forEach(({ label, x, w }) => {
-    // Date line above signature
     doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRAY);
     doc.text("Date: ____________", x, sigY);
-    // Main signature line
     doc.setDrawColor(...GREEN_DARK); doc.setLineWidth(0.5);
     doc.line(x, sigY + 10, x + w, sigY + 10);
-    // Label below
     doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...BLACK);
     doc.text(label, x + w / 2, sigY + 15, { align: "center" });
   });
@@ -759,8 +840,9 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.text("This is a computer-generated Report Card. No manual signature required.", 105, 282, { align: "center" });
   doc.text(`${SCHOOL_ADDRESS}  |  ${SCHOOL_PHONE}  |  Generated: ${new Date().toLocaleDateString("en-IN")}`, 105, 287, { align: "center" });
 
-  doc.save(`${isFinal ? "Final_Report_Card" : "Report_Card_UT1_HalfYearly"}_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
+  doc.save(`${meta.file}_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
 }
+
 
 // ============== MARKSHEET (Legacy export for backward compatibility) ==============
 interface MarksheetData {

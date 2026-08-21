@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Download, Loader2, Save, CheckCircle2, Pencil, FileText } from "lucide-react";
 import {
   Select,
@@ -11,8 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useStudents } from "@/hooks/useStudents";
-import { useClasses } from "@/hooks/useClasses";
-import { generateReportCardPDF } from "@/lib/pdfDocuments";
+import {
+  generateReportCardPDF,
+  VARIANT_EXAMS,
+  VARIANT_TITLES,
+  type ReportVariant,
+} from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -23,13 +28,22 @@ import {
   useDeleteReportCard,
 } from "@/hooks/useReportCards";
 
+type ExamKey = "ut1" | "halfYearly" | "ut2" | "annual";
+
 interface SubjectRow {
   subject: string;
+  /** Max marks for Half Yearly / Annual */
   totalMarks: number;
+  /** Max marks for unit tests (default 50) */
+  utMarks: number;
   ut1: number;
   halfYearly: number;
   ut2: number;
   annual: number;
+  gUt1: string;
+  gHalfYearly: string;
+  gUt2: string;
+  gAnnual: string;
 }
 
 const DEFAULT_SUBJECTS = [
@@ -37,27 +51,62 @@ const DEFAULT_SUBJECTS = [
   "Computer", "G.K.", "Drawing", "Moral Science",
 ];
 
+const PRE_PRIMARY_SUBJECTS = [
+  "English (Oral & Written)", "Hindi (Oral & Written)", "Numbers", "Rhymes & Story Telling",
+  "Drawing & Colouring", "General Awareness", "Physical Activity", "Discipline & Behaviour",
+];
+
+const GRADE_OPTIONS = ["A+", "A", "B+", "B", "C", "D", "E"];
+const GRADE_POINTS: Record<string, number> = { "A+": 7, A: 6, "B+": 5, B: 4, C: 3, D: 2, E: 1 };
+
+const EXAM_LABELS: Record<ExamKey, string> = {
+  ut1: "1st UT",
+  halfYearly: "Half Yearly",
+  ut2: "2nd UT",
+  annual: "Annual",
+};
+
+const VARIANT_OPTIONS: { value: ReportVariant; label: string }[] = [
+  { value: "ut1", label: "Single Exam — 1st Unit Test only" },
+  { value: "halfYearly", label: "Single Exam — Half Yearly only" },
+  { value: "ut2", label: "Single Exam — 2nd Unit Test only" },
+  { value: "annual", label: "Single Exam — Annual Exam only" },
+  { value: "midterm", label: "Combined — 1st Unit Test + Half Yearly" },
+  { value: "final", label: "Whole Year — 1st UT + Half Yearly + 2nd UT + Annual" },
+];
+
+const emptyRow = (subject = ""): SubjectRow => ({
+  subject,
+  totalMarks: 100,
+  utMarks: 50,
+  ut1: 0,
+  halfYearly: 0,
+  ut2: 0,
+  annual: 0,
+  gUt1: "",
+  gHalfYearly: "",
+  gUt2: "",
+  gAnnual: "",
+});
+
+const isPrePrimaryClass = (name?: string | null) =>
+  !!name && /play\s*group|playgroup|nursery|pre[- ]?nursery|pg\b/i.test(name);
+
 export default function MarksheetGenerator() {
   const { data: students, isLoading: studentsLoading } = useStudents();
-  const { data: classes } = useClasses();
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [academicYear, setAcademicYear] = useState("2025-2026");
   const [houseName, setHouseName] = useState("");
-  const [variant, setVariant] = useState<"midterm" | "final">("final");
+  const [variant, setVariant] = useState<ReportVariant>("final");
+  const [gradeMode, setGradeMode] = useState(false);
+  const [gradeModeTouched, setGradeModeTouched] = useState(false);
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [totalDays, setTotalDays] = useState("");
   const [presentDays, setPresentDays] = useState("");
   const [subjects, setSubjects] = useState<SubjectRow[]>(
-    DEFAULT_SUBJECTS.map((s) => ({
-      subject: s,
-      totalMarks: 100,
-      ut1: 0,
-      halfYearly: 0,
-      ut2: 0,
-      annual: 0,
-    }))
+    DEFAULT_SUBJECTS.map((s) => emptyRow(s))
   );
 
   const { data: savedCard, isFetching: loadingSaved } = useReportCard(
@@ -68,59 +117,88 @@ export default function MarksheetGenerator() {
   const { data: savedCards, isLoading: savedListLoading } = useSavedReportCards();
   const deleteCard = useDeleteReportCard();
 
+  const selectedStudent = useMemo(
+    () => students?.find((s) => s.id === selectedStudentId),
+    [students, selectedStudentId]
+  );
+  const className = (selectedStudent as any)?.classes?.name as string | undefined;
+
   const loadSavedCard = (studentId: string, year: string) => {
     setSelectedStudentId(studentId);
     setAcademicYear(year);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Auto-switch to grade based assessment for Play Group / Nursery
+  useEffect(() => {
+    if (!className || gradeModeTouched) return;
+    const pre = isPrePrimaryClass(className);
+    setGradeMode(pre);
+    setSubjects((prev) => {
+      const untouched = prev.every(
+        (r) => !r.ut1 && !r.halfYearly && !r.ut2 && !r.annual && !r.gUt1 && !r.gHalfYearly
+      );
+      if (!untouched) return prev;
+      return (pre ? PRE_PRIMARY_SUBJECTS : DEFAULT_SUBJECTS).map((s) => emptyRow(s));
+    });
+  }, [className, gradeModeTouched]);
+
   // Load previously saved marks whenever a student / year is picked
   useEffect(() => {
-    if (!selectedStudentId) return;
-    if (savedCard) {
-      setHouseName(savedCard.house_name || "");
-      setHeight(savedCard.height || "");
-      setWeight(savedCard.weight || "");
-      setTotalDays(savedCard.total_days ? String(savedCard.total_days) : "");
-      setPresentDays(savedCard.present_days ? String(savedCard.present_days) : "");
-      if (Array.isArray(savedCard.subjects) && savedCard.subjects.length > 0) {
-        setSubjects(savedCard.subjects);
-      }
+    if (!selectedStudentId || !savedCard) return;
+    setHouseName(savedCard.house_name || "");
+    setHeight(savedCard.height || "");
+    setWeight(savedCard.weight || "");
+    setTotalDays(savedCard.total_days ? String(savedCard.total_days) : "");
+    setPresentDays(savedCard.present_days ? String(savedCard.present_days) : "");
+    if (Array.isArray(savedCard.subjects) && savedCard.subjects.length > 0) {
+      setSubjects(
+        savedCard.subjects.map((s: any) => ({ ...emptyRow(), ...s, utMarks: s.utMarks ?? 50 }))
+      );
     }
   }, [savedCard, selectedStudentId]);
 
-  const isFinal = variant === "final";
-  const examCount = isFinal ? 4 : 2;
+  const exams = VARIANT_EXAMS[variant] as ExamKey[];
+  const maxFor = (row: SubjectRow, key: ExamKey) =>
+    key === "ut1" || key === "ut2" ? row.utMarks || 0 : row.totalMarks || 0;
 
-  const selectedStudent = useMemo(
-    () => students?.find((s) => s.id === selectedStudentId),
-    [students, selectedStudentId]
-  );
-
-  const addSubject = () =>
-    setSubjects([...subjects, { subject: "", totalMarks: 100, ut1: 0, halfYearly: 0, ut2: 0, annual: 0 }]);
-
-  const removeSubject = (i: number) =>
-    setSubjects(subjects.filter((_, idx) => idx !== i));
+  const addSubject = () => setSubjects([...subjects, emptyRow()]);
+  const removeSubject = (i: number) => setSubjects(subjects.filter((_, idx) => idx !== i));
 
   const updateSubject = (i: number, field: keyof SubjectRow, val: string) => {
     const updated = [...subjects];
-    if (field === "subject") {
-      updated[i] = { ...updated[i], subject: val };
-    } else {
-      updated[i] = { ...updated[i], [field]: Number(val) || 0 };
-    }
+    const numeric = ["totalMarks", "utMarks", "ut1", "halfYearly", "ut2", "annual"];
+    updated[i] = {
+      ...updated[i],
+      [field]: numeric.includes(field as string) ? Number(val) || 0 : val,
+    } as SubjectRow;
     setSubjects(updated);
   };
 
   const totalObtained = subjects.reduce(
-    (s, r) => s + r.ut1 + r.halfYearly + (isFinal ? r.ut2 + r.annual : 0),
+    (sum, r) => sum + exams.reduce((a, k) => a + Number(r[k] || 0), 0),
     0
   );
-  const totalMax = subjects.reduce((s, r) => s + r.totalMarks * examCount, 0);
+  const totalMax = subjects.reduce(
+    (sum, r) => sum + exams.reduce((a, k) => a + maxFor(r, k), 0),
+    0
+  );
   const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
-  const overallGrade = calculateGrade(percentage);
 
+  const gradeOverall = useMemo(() => {
+    const letters = subjects.flatMap((r) =>
+      exams.map((k) => {
+        const key = ({ ut1: "gUt1", halfYearly: "gHalfYearly", ut2: "gUt2", annual: "gAnnual" } as const)[k];
+        return r[key];
+      })
+    ).filter((g) => g && GRADE_POINTS[g]);
+    if (letters.length === 0) return "—";
+    const avg = letters.reduce((a, g) => a + GRADE_POINTS[g], 0) / letters.length;
+    const rounded = Math.round(avg);
+    return Object.keys(GRADE_POINTS).find((g) => GRADE_POINTS[g] === rounded) || "B";
+  }, [subjects, exams]);
+
+  const overallGrade = gradeMode ? gradeOverall : calculateGrade(percentage);
 
   const buildPayload = () => ({
     student_id: selectedStudentId,
@@ -138,7 +216,7 @@ export default function MarksheetGenerator() {
       toast.error("Please select a student");
       return;
     }
-    await saveCard.mutateAsync(buildPayload());
+    await saveCard.mutateAsync(buildPayload() as any);
   };
 
   const handleGenerate = async () => {
@@ -148,7 +226,7 @@ export default function MarksheetGenerator() {
     }
     const validSubjects = subjects.filter((s) => s.subject.trim());
     if (validSubjects.length === 0) {
-      toast.error("Add at least one subject with marks");
+      toast.error("Add at least one subject");
       return;
     }
 
@@ -156,11 +234,11 @@ export default function MarksheetGenerator() {
     await generateReportCardPDF({
       studentName: selectedStudent.name,
       rollNo: selectedStudent.roll_no || "—",
-      className: (selectedStudent as any).classes?.name || "—",
+      className: className || "—",
       houseName: houseName || "—",
       variant,
+      mode: gradeMode ? "grades" : "marks",
       academicYear,
-
       dob: selectedStudent.date_of_birth || "—",
       fatherName: selectedStudent.parent_name || "—",
       motherName: (selectedStudent as any).mother_name || "—",
@@ -169,22 +247,14 @@ export default function MarksheetGenerator() {
       totalDays: Number(totalDays) || 0,
       presentDays: Number(presentDays) || 0,
       photoUrl: selectedStudent.photo_url,
-      subjects: validSubjects.map((s) => ({
-        subject: s.subject,
-        totalMarks: s.totalMarks,
-        ut1: s.ut1,
-        halfYearly: s.halfYearly,
-        ut2: s.ut2,
-        annual: s.annual,
-      })),
+      subjects: validSubjects,
       overallGrade,
       percentage,
     });
 
-    // Auto-save so marks stay available for the annual report card
     if (selectedStudentId) {
       try {
-        await saveCard.mutateAsync(buildPayload());
+        await saveCard.mutateAsync(buildPayload() as any);
       } catch {
         /* save errors are already reported */
       }
@@ -201,12 +271,16 @@ export default function MarksheetGenerator() {
     );
   }
 
+  const gradeKeyOf = (k: ExamKey) =>
+    ({ ut1: "gUt1", halfYearly: "gHalfYearly", ut2: "gUt2", annual: "gAnnual" } as const)[k];
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="page-header">
         <h1 className="page-title">Report Card Generator</h1>
         <p className="page-description">
-          Create comprehensive report cards with 1st Unit Test, Half Yearly, 2nd Unit Test & Annual Exam
+          Single exam, mid-term or whole-year report cards — marks based (Unit Tests out of 50) or
+          grade based for Play Group &amp; Nursery
         </p>
       </div>
 
@@ -245,16 +319,34 @@ export default function MarksheetGenerator() {
             />
           </div>
           <div className="space-y-1 sm:col-span-2">
-            <Label>Report Card Version</Label>
-            <Select value={variant} onValueChange={(v) => setVariant(v as "midterm" | "final")}>
+            <Label>Report Card Type</Label>
+            <Select value={variant} onValueChange={(v) => setVariant(v as ReportVariant)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="midterm">Version 1 — 1st Unit Test + Half Yearly</SelectItem>
-                <SelectItem value="final">Version 2 — Final (all four examinations)</SelectItem>
+                {VARIANT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-lg border p-3">
+            <div>
+              <Label className="text-sm">Grade based report card</Label>
+              <p className="text-xs text-muted-foreground">
+                Auto-enabled for Play Group &amp; Nursery — A, B, C grades instead of marks
+              </p>
+            </div>
+            <Switch
+              checked={gradeMode}
+              onCheckedChange={(v) => {
+                setGradeMode(v);
+                setGradeModeTouched(true);
+              }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:col-span-2">
             <div className="space-y-1">
@@ -290,7 +382,6 @@ export default function MarksheetGenerator() {
           </div>
         </div>
 
-
         {/* Selected Student Info */}
         {selectedStudent && (
           <div className="p-3 rounded-lg bg-muted/30 border grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
@@ -304,7 +395,7 @@ export default function MarksheetGenerator() {
             </div>
             <div>
               <span className="text-muted-foreground">Class: </span>
-              <span className="font-medium">{(selectedStudent as any).classes?.name || "—"}</span>
+              <span className="font-medium">{className || "—"}</span>
             </div>
             <div>
               <span className="text-muted-foreground">DOB: </span>
@@ -317,92 +408,140 @@ export default function MarksheetGenerator() {
           </div>
         )}
 
-        {/* Subjects Table with 4 exam columns */}
+        {/* Subjects */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-base font-semibold">Subjects & Marks</Label>
+            <div>
+              <Label className="text-base font-semibold">
+                {gradeMode ? "Subjects / Activities & Grades" : "Subjects & Marks"}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {VARIANT_TITLES[variant].subtitle}
+              </p>
+            </div>
             <Button type="button" variant="outline" size="sm" onClick={addSubject} className="gap-1">
-              <Plus className="h-3 w-3" /> Add Subject
+              <Plus className="h-3 w-3" /> Add {gradeMode ? "Activity" : "Subject"}
             </Button>
           </div>
 
           <div className="overflow-x-auto">
-            <div className={`${isFinal ? "min-w-[700px]" : "min-w-[520px]"} space-y-2`}>
-              {(() => {
-                const gridCls = isFinal
-                  ? "grid grid-cols-[1fr_80px_80px_80px_80px_80px_40px] gap-2"
-                  : "grid grid-cols-[1fr_80px_80px_100px_40px] gap-2";
-                return (
-                  <>
-                    <div className={`${gridCls} text-xs font-medium text-muted-foreground px-1`}>
-                      <span>Subject</span>
-                      <span className="text-center">Total</span>
-                      <span className="text-center">1st UT</span>
-                      <span className="text-center">Half Yearly</span>
-                      {isFinal && <span className="text-center">2nd UT</span>}
-                      {isFinal && <span className="text-center">Annual</span>}
-                      <span></span>
-                    </div>
-                    {subjects.map((s, i) => (
-                      <div key={i} className={`${gridCls} items-center`}>
-                        <Input
-                          placeholder="Subject name"
-                          value={s.subject}
-                          onChange={(e) => updateSubject(i, "subject", e.target.value)}
-                        />
-                        <Input
-                          type="number"
-                          value={s.totalMarks || ""}
-                          onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
-                          className="text-center"
-                        />
-                        <Input
-                          type="number"
-                          value={s.ut1 || ""}
-                          onChange={(e) => updateSubject(i, "ut1", e.target.value)}
-                          max={s.totalMarks}
-                          className="text-center"
-                        />
-                        <Input
-                          type="number"
-                          value={s.halfYearly || ""}
-                          onChange={(e) => updateSubject(i, "halfYearly", e.target.value)}
-                          max={s.totalMarks}
-                          className="text-center"
-                        />
-                        {isFinal && (
-                          <Input
-                            type="number"
-                            value={s.ut2 || ""}
-                            onChange={(e) => updateSubject(i, "ut2", e.target.value)}
-                            max={s.totalMarks}
-                            className="text-center"
-                          />
-                        )}
-                        {isFinal && (
-                          <Input
-                            type="number"
-                            value={s.annual || ""}
-                            onChange={(e) => updateSubject(i, "annual", e.target.value)}
-                            max={s.totalMarks}
-                            className="text-center"
-                          />
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeSubject(i)}
-                          disabled={subjects.length === 1}
-                          className="text-destructive h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+            <div className="min-w-[640px] space-y-2">
+              {gradeMode ? (
+                <>
+                  <div
+                    className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
+                    style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 110px) 40px` }}
+                  >
+                    <span>Subject / Activity</span>
+                    {exams.map((k) => (
+                      <span key={k} className="text-center">{EXAM_LABELS[k]} Grade</span>
                     ))}
-                  </>
-                );
-              })()}
+                    <span />
+                  </div>
+                  {subjects.map((s, i) => (
+                    <div
+                      key={i}
+                      className="grid gap-2 items-center"
+                      style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 110px) 40px` }}
+                    >
+                      <Input
+                        placeholder="Activity name"
+                        value={s.subject}
+                        onChange={(e) => updateSubject(i, "subject", e.target.value)}
+                      />
+                      {exams.map((k) => {
+                        const gk = gradeKeyOf(k);
+                        return (
+                          <Select
+                            key={k}
+                            value={s[gk] || ""}
+                            onValueChange={(v) => updateSubject(i, gk, v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Grade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GRADE_OPTIONS.map((g) => (
+                                <SelectItem key={g} value={g}>{g}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      })}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeSubject(i)}
+                        disabled={subjects.length === 1}
+                        className="text-destructive h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div
+                    className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
+                    style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, 90px) 40px` }}
+                  >
+                    <span>Subject</span>
+                    <span className="text-center">UT Max</span>
+                    <span className="text-center">Term Max</span>
+                    {exams.map((k) => (
+                      <span key={k} className="text-center">{EXAM_LABELS[k]}</span>
+                    ))}
+                    <span />
+                  </div>
+                  {subjects.map((s, i) => (
+                    <div
+                      key={i}
+                      className="grid gap-2 items-center"
+                      style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, 90px) 40px` }}
+                    >
+                      <Input
+                        placeholder="Subject name"
+                        value={s.subject}
+                        onChange={(e) => updateSubject(i, "subject", e.target.value)}
+                      />
+                      <Input
+                        type="number"
+                        value={s.utMarks || ""}
+                        onChange={(e) => updateSubject(i, "utMarks", e.target.value)}
+                        className="text-center"
+                      />
+                      <Input
+                        type="number"
+                        value={s.totalMarks || ""}
+                        onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
+                        className="text-center"
+                      />
+                      {exams.map((k) => (
+                        <Input
+                          key={k}
+                          type="number"
+                          value={s[k] || ""}
+                          onChange={(e) => updateSubject(i, k, e.target.value)}
+                          max={maxFor(s, k)}
+                          className="text-center"
+                        />
+                      ))}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeSubject(i)}
+                        disabled={subjects.length === 1}
+                        className="text-destructive h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -412,19 +551,27 @@ export default function MarksheetGenerator() {
           <h3 className="font-semibold">Result Summary</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <p className="text-xs text-muted-foreground">Aggregate</p>
-              <p className="text-lg font-bold">{totalObtained} / {totalMax}</p>
+              <p className="text-xs text-muted-foreground">
+                {gradeMode ? "Activities" : "Aggregate"}
+              </p>
+              <p className="text-lg font-bold">
+                {gradeMode ? subjects.filter((s) => s.subject.trim()).length : `${totalObtained} / ${totalMax}`}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Percentage</p>
-              <p className="text-lg font-bold">{percentage.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground">
+                {gradeMode ? "Assessment" : "Percentage"}
+              </p>
+              <p className="text-lg font-bold">
+                {gradeMode ? "Grade Based" : `${percentage.toFixed(1)}%`}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Grade</p>
+              <p className="text-xs text-muted-foreground">Overall Grade</p>
               <Badge
                 variant="outline"
                 className={
-                  percentage >= 60
+                  gradeMode || percentage >= 60
                     ? "bg-success/10 text-success border-success/20 text-lg"
                     : percentage >= 40
                     ? "bg-warning/10 text-warning border-warning/20 text-lg"
@@ -436,8 +583,12 @@ export default function MarksheetGenerator() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Result</p>
-              <p className={`text-lg font-bold ${percentage >= 33 ? "text-success" : "text-destructive"}`}>
-                {percentage >= 33 ? "PASS" : "FAIL"}
+              <p
+                className={`text-lg font-bold ${
+                  gradeMode || percentage >= 33 ? "text-success" : "text-destructive"
+                }`}
+              >
+                {gradeMode ? "PROMOTED" : percentage >= 33 ? "PASS" : "FAIL"}
               </p>
             </div>
           </div>
@@ -478,7 +629,7 @@ export default function MarksheetGenerator() {
             Save Marks
           </Button>
           <Button onClick={handleGenerate} className="w-full gap-2" size="lg" disabled={!selectedStudentId}>
-            <Download className="h-5 w-5" /> Save & Generate PDF
+            <Download className="h-5 w-5" /> Save &amp; Generate PDF
           </Button>
         </div>
       </div>
