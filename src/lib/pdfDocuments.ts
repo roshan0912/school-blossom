@@ -516,7 +516,7 @@ export interface ReportSubjectRow {
   gAnnual?: string;
 }
 
-interface ReportCardData {
+export interface ReportCardData {
   studentName: string;
   rollNo: string;
   className: string;
@@ -576,7 +576,7 @@ export const VARIANT_TITLES: Record<ReportVariant, { title: string; subtitle: st
 export const examMaxFor = (s: ReportSubjectRow, key: ExamKey) =>
   EXAM_META[key].isUT ? Number(s.utMarks ?? 50) : Number(s.totalMarks ?? 100);
 
-export async function generateReportCardPDF(data: ReportCardData): Promise<void> {
+export async function generateReportCardPDF(data: ReportCardData, output: "save" | "blob" = "save"): Promise<Blob | void> {
   const doc = new jsPDF({ orientation: "portrait", format: "a4", unit: "mm" });
   const logo = await getSchoolLogo();
   const variant: ReportVariant = data.variant ?? "final";
@@ -840,6 +840,7 @@ export async function generateReportCardPDF(data: ReportCardData): Promise<void>
   doc.text("This is a computer-generated Report Card. No manual signature required.", 105, 282, { align: "center" });
   doc.text(`${SCHOOL_ADDRESS}  |  ${SCHOOL_PHONE}  |  Generated: ${new Date().toLocaleDateString("en-IN")}`, 105, 287, { align: "center" });
 
+  if (output === "blob") return doc.output("blob");
   doc.save(`${meta.file}_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);
 }
 
