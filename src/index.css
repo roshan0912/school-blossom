@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -43,7 +41,7 @@
     --input: 220 13% 91%;
     --ring: 239 84% 67%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 224 71% 4%;
@@ -148,7 +146,7 @@
 
 @layer components {
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl;
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-lg;
     box-shadow: var(--shadow-card);
   }
 
@@ -157,7 +155,7 @@
   }
 
   .stat-card {
-    @apply relative overflow-hidden rounded-2xl p-6 transition-all duration-500 ease-out;
+    @apply relative overflow-hidden rounded-lg p-6 transition-all duration-500 ease-out;
     box-shadow: var(--shadow-card);
   }
 
@@ -171,7 +169,7 @@
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-accent-foreground hover:translate-x-0.5 relative;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-accent-foreground hover:translate-x-0.5 relative;
   }
 
   .sidebar-link-active {
@@ -211,12 +209,12 @@
   }
 
   .input-modern {
-    @apply h-11 rounded-xl border-border bg-background px-4 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary;
+    @apply h-11 rounded-lg border-border bg-background px-4 transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:border-primary;
   }
 
   .btn-gradient {
     background: var(--gradient-primary);
-    @apply text-white font-semibold transition-all duration-300;
+    @apply text-primary-foreground font-semibold transition-all duration-300;
     box-shadow: 0 4px 15px -3px hsl(239 84% 67% / 0.4);
   }
 
@@ -230,7 +228,7 @@
   }
 
   .page-title {
-    @apply text-3xl font-bold tracking-tight;
+    @apply text-3xl font-bold tracking-normal;
     font-family: 'Space Grotesk', sans-serif;
   }
 
@@ -240,7 +238,7 @@
 
   /* Premium card styles */
   .premium-card {
-    @apply bg-card rounded-2xl border border-border/50 p-6 transition-all duration-300;
+    @apply bg-card rounded-lg border border-border/50 p-6 transition-all duration-300;
     box-shadow: var(--shadow-card);
   }
 
@@ -328,4 +326,12 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/30;
   }
+}
+
+@layer base {
+  body { letter-spacing: 0; }
+  :focus-visible { outline-offset: 3px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

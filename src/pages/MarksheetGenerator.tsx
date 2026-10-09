@@ -1,3 +1,4 @@
+import { DownloadReportsButton } from "@/components/DownloadReportsButton";
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -636,7 +637,7 @@ export default function MarksheetGenerator() {
 
       {/* Saved Report Cards */}
       <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" /> Saved Report Cards
@@ -645,7 +646,7 @@ export default function MarksheetGenerator() {
               Open any saved record to review, edit the marks or regenerate the PDF.
             </p>
           </div>
-          {savedCards && <Badge variant="outline">{savedCards.length} saved</Badge>}
+          <div className="flex flex-wrap items-center gap-3">{savedCards && <Badge variant="outline">{savedCards.length} saved</Badge>}<DownloadReportsButton scope="cards" variant={variant} /></div>
         </div>
 
         {savedListLoading ? (

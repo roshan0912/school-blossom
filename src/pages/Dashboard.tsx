@@ -1,3 +1,4 @@
+import { DownloadReportsButton } from "@/components/DownloadReportsButton";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -28,32 +29,23 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Greeting Card */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 opacity-0 animate-fade-in" style={{ background: 'var(--gradient-primary)' }}>
-        {/* Decorative orbs */}
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-20 left-1/3 w-72 h-72 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute top-6 right-6 w-20 h-20 rounded-full bg-white/10 animate-float hidden sm:block" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-4">
-            <SchoolLogo size={68} className="ring-2 ring-white/40 shadow-xl shrink-0" />
-            <div className="text-white">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[11px] font-semibold uppercase tracking-wider mb-2">
-                <Sparkles className="h-3 w-3" />
-                {getGreeting()}
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                Welcome back, {userName} 👋
-              </h1>
-              <p className="text-white/80 mt-1 text-sm sm:text-[15px]">Here's what's happening at Vedanta Valley today.</p>
+      <section className="border-b border-border pb-6 animate-fade-in">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+          <div className="flex items-center gap-4 min-w-0">
+            <SchoolLogo size={64} className="shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-primary mb-2">VEDANTA VALLEY PUBLIC SCHOOL</p>
+              <h1 className="text-2xl sm:text-3xl font-bold break-words">{getGreeting()}, {userName}</h1>
+              <p className="text-sm text-muted-foreground mt-2">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
             </div>
           </div>
-          <div className="shrink-0">
-            <QuickActionDropdown />
-          </div>
+          <QuickActionDropdown />
         </div>
-      </div>
+      </section>
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-primary bg-accent/40 px-5 py-4">
+        <div><h2 className="font-semibold">School reports</h2><p className="text-sm text-muted-foreground mt-1">Saved report cards · Fee collections · Payroll · Attendance</p></div>
+        <DownloadReportsButton />
+      </section>
 
       {/* Stats Grid */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
