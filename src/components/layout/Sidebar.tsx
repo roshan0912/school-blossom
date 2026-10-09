@@ -104,6 +104,7 @@ export function Sidebar() {
         variant="ghost"
         size="icon"
         className="fixed top-4 left-4 z-50 lg:hidden bg-card/80 backdrop-blur-md shadow-lg"
+        aria-label={isMobileOpen ? "Close navigation" : "Open navigation"}
         onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
         {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -141,7 +142,7 @@ export function Sidebar() {
             {allSections.map((section, sIdx) => (
               <div key={sIdx} className={cn(sIdx > 0 && "mt-5")}>
                 {section.label && (
-                  <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">
+                  <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
                     {section.label}
                   </p>
                 )}
@@ -186,6 +187,8 @@ export function Sidebar() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                aria-label="Sign out"
+                title="Sign out"
                 onClick={() => signOut()}
               >
                 <LogOut className="h-4 w-4" />

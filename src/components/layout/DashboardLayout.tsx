@@ -1,6 +1,6 @@
 import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
-import { Moon, Sun, LogOut } from "lucide-react";
+import { Moon, Sun, LogOut, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,11 +17,12 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { SchoolLogo } from "@/components/SchoolLogo";
 
 export function DashboardLayout() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => localStorage.getItem("school-theme") === "dark");
   const { user, signOut, userRole } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    localStorage.setItem("school-theme", isDark ? "dark" : "light");
     if (isDark) {
       document.documentElement.classList.add("dark");
     } else {
@@ -47,14 +48,17 @@ export function DashboardLayout() {
       {/* Main content */}
       <div className="lg:pl-[260px]">
         {/* Top header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/50 bg-background/70 backdrop-blur-xl px-6">
-          <div className="flex-1 flex items-center gap-3 ml-12 lg:ml-0">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b border-border/50 bg-background/70 backdrop-blur-xl px-3 sm:px-6">
+          <div className="min-w-0 flex-1 flex items-center gap-3 ml-12 lg:ml-0">
             <SchoolLogo size={32} className="lg:hidden" />
             <GlobalSearch />
           </div>
           
           <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" aria-label="Recent updates" title="Recent updates" onClick={() => window.dispatchEvent(new Event("show-school-updates"))}><Sparkles className="h-4 w-4" /></Button>
             <Button
+              aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+              title={isDark ? "Switch to light theme" : "Switch to dark theme"}
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-xl"
@@ -94,7 +98,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page content */}
-        <main className="p-6 lg:p-8 max-w-[1400px]">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
           <Outlet />
         </main>
       </div>

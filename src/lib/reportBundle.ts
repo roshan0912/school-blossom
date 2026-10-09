@@ -22,8 +22,16 @@ export async function downloadReportBundle(scope: "school" | "cards", variant: R
   const zip = new JSZip();
   let files = 0;
   progress("Loading saved reports…");
-  const { data: cards, error } = await supabase.from("report_cards").select("*, students(*, classes(name))").order("academic_year");
+  const { data: firstPage, error } = await supabase.from("report_cards").select("*, students(*, classes(name))").order("id").range(0, 499);
   if (error) throw error;
+  const cards = [...(firstPage || [])];
+  let pageLength = firstPage?.length || 0;
+  for (let offset = 500; pageLength === 500; offset += 500) {
+    const { data: page, error: pageError } = await supabase.from("report_cards").select("*, students(*, classes(name))").order("id").range(offset, offset + 499);
+    if (pageError) throw pageError;
+    cards.push(...(page || []));
+    pageLength = page?.length || 0;
+  }
   for (const [index, card] of (cards || []).entries()) {
     const student = card.students;
     if (!student) throw new Error("A saved report has no student record. Please review saved report cards before downloading.");

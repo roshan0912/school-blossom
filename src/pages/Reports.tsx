@@ -1,3 +1,4 @@
+import { DownloadReportsButton } from "@/components/DownloadReportsButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, FileText, Users, IndianRupee, Calendar, BarChart3, TrendingUp, PieChart, Loader2 } from "lucide-react";
@@ -124,9 +125,9 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Reports & Analytics</h1>
-        <p className="page-description">Generate and download comprehensive reports</p>
+      <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div><h1 className="page-title">Reports & Analytics</h1><p className="page-description">School records and performance</p></div>
+        <DownloadReportsButton />
       </div>
 
       {/* Quick Report Downloads */}
