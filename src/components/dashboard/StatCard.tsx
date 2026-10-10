@@ -39,14 +39,11 @@ export function StatCard({
       className="stat-card bg-card border border-border/50 opacity-0 animate-fade-in group"
       style={{ animationDelay: `${delay}ms` }}
     >
-      {/* Gradient accent line at top */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl opacity-80 group-hover:opacity-100 transition-opacity" style={{ background: gradientStyles[gradient] }} />
-      
       <div className="relative">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
-            <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
+             <p className="text-xs font-medium text-muted-foreground">{title}</p>
+             <p className="mt-2 text-2xl font-semibold tracking-normal break-words">{value}</p>
             {change && (
               <p
                 className={cn(
@@ -60,8 +57,8 @@ export function StatCard({
               </p>
             )}
           </div>
-          <div className={cn("p-3 rounded-xl transition-transform group-hover:scale-110 duration-300", iconBgClasses[gradient])}>
-            <Icon className="h-6 w-6" />
+           <div className={cn("p-2 rounded-md shrink-0", iconBgClasses[gradient])}>
+             <Icon className="h-5 w-5" />
           </div>
         </div>
       </div>

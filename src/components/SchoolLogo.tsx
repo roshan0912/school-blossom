@@ -14,7 +14,7 @@ export function SchoolLogo({ className, size = 40, showRing = true }: SchoolLogo
   return (
     <div
       className={cn(
-        "relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-white shrink-0",
+        "school-logo-surface relative inline-flex items-center justify-center overflow-hidden rounded-lg shrink-0",
         showRing && "ring-1 ring-border/60 shadow-sm",
         className
       )}
