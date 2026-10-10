@@ -121,13 +121,13 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-[260px] bg-sidebar-background border-r border-sidebar-border z-40 transform transition-transform duration-300 lg:translate-x-0",
+          "workspace-sidebar fixed left-0 top-0 h-full w-[260px] bg-sidebar-background border-r border-sidebar-border z-40 transform transition-transform duration-300 lg:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border">
             <SchoolLogo size={42} />
             <div className="min-w-0">
               <h1 className="font-bold text-sm tracking-tight leading-tight truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -140,9 +140,9 @@ export function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-thin">
             {allSections.map((section, sIdx) => (
-              <div key={sIdx} className={cn(sIdx > 0 && "mt-5")}>
+              <div key={sIdx} className={cn(sIdx > 0 && "mt-4")}>
                 {section.label && (
-                  <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                  <p className="px-3 mb-1.5 text-[11px] font-medium text-muted-foreground">
                     {section.label}
                   </p>
                 )}
@@ -162,7 +162,7 @@ export function Sidebar() {
                       )}
                     >
                       <item.icon className={cn(
-                        "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+                         "h-4 w-4 flex-shrink-0 transition-colors",
                         isActive ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
                       )} />
                       <span className="text-[13px] font-medium">{item.name}</span>

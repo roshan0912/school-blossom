@@ -52,13 +52,13 @@ export default function Announcements() {
       {isLoading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : !announcements?.length ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Megaphone className="h-16 w-16 text-muted-foreground/30 mb-4" />
+        <div className="border-y border-border/60">
+          <div className="flex flex-col items-center justify-center py-20 px-4">
+            <div className="p-4 rounded-lg bg-muted mb-5"><Megaphone className="h-8 w-8 text-muted-foreground" /></div>
             <h2 className="text-xl font-semibold mb-2">No Announcements</h2>
             <p className="text-muted-foreground text-center max-w-md">Create your first announcement to notify students and staff.</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
         <div className="grid gap-4">
           {announcements.map((a, i) => (
@@ -68,8 +68,8 @@ export default function Announcements() {
                   <div className="flex items-start gap-3">
                     {priorityIcon(a.priority)}
                     <div>
-                      <CardTitle className="text-base">{a.title}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
+                      <CardTitle className="text-base break-words leading-relaxed">{a.title}</CardTitle>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
                         <Badge variant="outline" className={priorityBadge[a.priority] || priorityBadge.normal}>
                           {a.priority.charAt(0).toUpperCase() + a.priority.slice(1)}
                         </Badge>
@@ -78,7 +78,7 @@ export default function Announcements() {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteAnnouncement.mutate(a.id)}>
+                  <Button variant="ghost" size="icon" aria-label="Delete announcement" title="Delete announcement" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => deleteAnnouncement.mutate(a.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
