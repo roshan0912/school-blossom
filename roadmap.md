@@ -1,6 +1,6 @@
 # App refresh
-- [ ] Match the supplied clean, softly layered workspace reference through presentation-only changes.
-- [ ] Check refreshed screens, navigation and existing controls without changing data or workflows.
+- [x] Match the supplied clean, softly layered workspace reference through presentation-only changes.
+- [x] Check refreshed screens, navigation and existing controls without changing data or workflows.
 - [x] Refresh shared styling, navigation, login and dashboard without changing existing workflows.
 - [x] Add one-tap downloads for school reports and saved report cards.
 - [x] Show a dismissible recent-updates card on opening, with a way to reopen it.
