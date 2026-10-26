@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Archive, LayoutDashboard, ScrollText, Receipt, CalendarCheck, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SchoolLogo } from "@/components/SchoolLogo";
+
+const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 
 const updates = [
   { icon: LayoutDashboard, title: "A refreshed school workspace", detail: "Cleaner navigation, clearer tables, refined colours and light / dark themes." },
@@ -12,6 +15,8 @@ const updates = [
   { icon: CalendarCheck, title: "Monthly payroll & print-ready TCs", detail: "Month-wise salary tracking and transfer certificates formatted for A4 printing." },
 ];
 export function RecentUpdates() {
+  const location = useLocation();
+  const isPublic = PUBLIC_ROUTES.some((r) => location.pathname.startsWith(r));
   const [open, setOpen] = useState(() => {
     try { return sessionStorage.getItem("vedanta-updates-2026-10") !== "seen"; } catch { return true; }
   });
@@ -20,6 +25,7 @@ export function RecentUpdates() {
     window.addEventListener("show-school-updates", reopen);
     return () => window.removeEventListener("show-school-updates", reopen);
   }, []);
+  if (isPublic) return null;
   const changeOpen = (value: boolean) => {
     setOpen(value);
     if (!value) { try { sessionStorage.setItem("vedanta-updates-2026-10", "seen"); } catch { /* storage may be unavailable */ } }
