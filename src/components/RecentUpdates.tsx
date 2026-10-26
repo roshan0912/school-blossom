@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Archive, LayoutDashboard, ScrollText, Receipt, CalendarCheck, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SchoolLogo } from "@/components/SchoolLogo";
+
+const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 
 const updates = [
   { icon: LayoutDashboard, title: "A refreshed school workspace", detail: "Cleaner navigation, clearer tables, refined colours and light / dark themes." },
