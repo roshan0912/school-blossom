@@ -438,11 +438,14 @@ export default function MarksheetGenerator() {
                 <>
                   <div
                     className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
-                    style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 110px) 40px` }}
+                    style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 128px) 40px` }}
                   >
                     <span>Subject / Activity</span>
                     {exams.map((k) => (
-                      <span key={k} className="text-center">{EXAM_LABELS[k]} Grade</span>
+                      <span key={k} className="text-center leading-tight">
+                        {EXAM_LABELS[k]}
+                        <span className="block text-[10px] font-normal">Marks | Grade</span>
+                      </span>
                     ))}
                     <span />
                   </div>
@@ -450,7 +453,7 @@ export default function MarksheetGenerator() {
                     <div
                       key={i}
                       className="grid gap-2 items-center"
-                      style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 110px) 40px` }}
+                      style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 128px) 40px` }}
                     >
                       <Input
                         placeholder="Activity name"
@@ -460,20 +463,29 @@ export default function MarksheetGenerator() {
                       {exams.map((k) => {
                         const gk = gradeKeyOf(k);
                         return (
-                          <Select
-                            key={k}
-                            value={s[gk] || ""}
-                            onValueChange={(v) => updateSubject(i, gk, v)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Grade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {GRADE_OPTIONS.map((g) => (
-                                <SelectItem key={g} value={g}>{g}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div key={k} className="flex gap-1">
+                            <Input
+                              type="number"
+                              value={s[k] || ""}
+                              onChange={(e) => updateSubject(i, k, e.target.value)}
+                              max={maxFor(s, k)}
+                              className="w-12 px-1 text-center"
+                              placeholder="0"
+                            />
+                            <Select
+                              value={s[gk] || ""}
+                              onValueChange={(v) => updateSubject(i, gk, v)}
+                            >
+                              <SelectTrigger className="px-2">
+                                <SelectValue placeholder="Grade" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {GRADE_OPTIONS.map((g) => (
+                                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         );
                       })}
                       <Button
@@ -493,13 +505,16 @@ export default function MarksheetGenerator() {
                 <>
                   <div
                     className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
-                    style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, 90px) 40px` }}
+                    style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, 110px) 40px` }}
                   >
                     <span>Subject</span>
                     <span className="text-center">UT Max</span>
                     <span className="text-center">Term Max</span>
                     {exams.map((k) => (
-                      <span key={k} className="text-center">{EXAM_LABELS[k]}</span>
+                      <span key={k} className="text-center leading-tight">
+                        {EXAM_LABELS[k]}
+                        <span className="block text-[10px] font-normal">Marks | Grade</span>
+                      </span>
                     ))}
                     <span />
                   </div>
