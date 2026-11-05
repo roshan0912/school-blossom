@@ -613,7 +613,7 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
   doc.line(55, 51, 155, 51);
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
   doc.text(
-    isGradeMode ? `${meta.subtitle}  (Grade Based Assessment)` : meta.subtitle,
+    isGradeMode ? `${meta.subtitle}  (Marks & Grade Assessment)` : meta.subtitle,
     105,
     55,
     { align: "center" }
@@ -663,87 +663,76 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
   const subjMax = (s: ReportSubjectRow) =>
     exams.reduce((sum, k) => sum + examMaxFor(s, k), 0);
 
-  if (isGradeMode) {
-    // ── GRADE BASED TABLE (Play Group / Nursery) ──
-    const head = [["S.No.", "Subject / Activity", ...exams.map((k) => EXAM_META[k].short)]];
-    const snoW = 14;
-    const subjW = 70;
-    const gradeW = (TABLE_W - snoW - subjW) / exams.length;
-    const colStyles: Record<number, any> = {
-      0: { cellWidth: snoW },
-      1: { halign: "left", cellWidth: subjW },
-    };
-    exams.forEach((_, i) => {
-      colStyles[i + 2] = { cellWidth: gradeW, fontStyle: "bold" };
-    });
+  // ── MARKS & GRADE TABLE — every exam prints a Marks column then a Grade column ──
+  const head: any[] = [
+    [
+      { content: "S.No.", rowSpan: 2 },
+      { content: isGradeMode ? "Subject / Activity" : "Subject", rowSpan: 2 },
+      ...exams.map((k) => ({ content: EXAM_META[k].short, colSpan: 2 })),
+      ...(isGradeMode
+        ? []
+        : [
+            { content: "Total Obt.", rowSpan: 2 },
+            { content: "Out Of", rowSpan: 2 },
+            { content: "Grade", rowSpan: 2 },
+          ]),
+    ],
+    exams.flatMap(() => ["Marks", "Grade"]),
+  ];
 
-    autoTable(doc, {
-      startY: 105,
-      head,
-      body: data.subjects.map((s, i) => [
-        String(i + 1),
-        s.subject,
-        ...exams.map((k) => String(s[EXAM_META[k].gradeKey] || "—")),
-      ]),
-      theme: "grid",
-      headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8.5, halign: "center" },
-      bodyStyles: { fontSize: 9, halign: "center", minCellHeight: 8 },
-      alternateRowStyles: { fillColor: [245, 250, 245] },
-      columnStyles: colStyles,
-      tableWidth: TABLE_W,
-      margin: { left: 12, right: 12 },
-    });
-  } else {
-    const head = [
-      [
-        "S.No.",
-        "Subject",
-        ...exams.map((k) => EXAM_META[k].short),
-        ...(exams.length > 1 ? ["Total Obt.", "Out Of", "Grade"] : ["Out Of", "Grade"]),
-      ],
-    ];
-    const snoW = 12;
-    const tailCols = exams.length > 1 ? 3 : 2;
-    const tailW = 18;
-    const examW = exams.length > 1 ? 20 : 26;
-    const subjW = TABLE_W - snoW - examW * exams.length - tailW * tailCols;
-    const colStyles: Record<number, any> = {
-      0: { cellWidth: snoW },
-      1: { halign: "left", cellWidth: subjW },
-    };
-    exams.forEach((_, i) => {
-      colStyles[i + 2] = { cellWidth: examW };
-    });
-    for (let t = 0; t < tailCols; t++) {
-      colStyles[2 + exams.length + t] = { cellWidth: tailW };
-    }
-
-    autoTable(doc, {
-      startY: 105,
-      head,
-      body: data.subjects.map((s, i) => {
-        const obt = subjObtained(s);
-        const max = subjMax(s);
-        const pct = max > 0 ? (obt / max) * 100 : 0;
-        const marks = exams.map((k) => `${Number(s[k] || 0)} / ${examMaxFor(s, k)}`);
-        return [
-          String(i + 1),
-          s.subject,
-          ...marks,
-          ...(exams.length > 1 ? [String(obt)] : []),
-          String(max),
-          calculateGrade(pct),
-        ];
-      }),
-      theme: "grid",
-      headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 7.5, halign: "center" },
-      bodyStyles: { fontSize: 8, halign: "center" },
-      alternateRowStyles: { fillColor: [245, 250, 245] },
-      columnStyles: colStyles,
-      tableWidth: TABLE_W,
-      margin: { left: 12, right: 12 },
-    });
+  const snoW = 10;
+  const pairW = 25; // Marks 14 + Grade 11
+  const tailCols = isGradeMode ? 0 : 3;
+  const tailW = 16;
+  const subjW = TABLE_W - snoW - pairW * exams.length - tailCols * tailW;
+  const colStyles: Record<number, any> = {
+    0: { cellWidth: snoW },
+    1: { halign: "left", cellWidth: subjW },
+  };
+  exams.forEach((_, i) => {
+    colStyles[2 + i * 2] = { cellWidth: 14 };
+    colStyles[3 + i * 2] = { cellWidth: 11, fontStyle: "bold" };
+  });
+  for (let t = 0; t < tailCols; t++) {
+    colStyles[2 + exams.length * 2 + t] = { cellWidth: tailW };
   }
+
+  autoTable(doc, {
+    startY: 105,
+    head,
+    body: data.subjects.map((s, i) => {
+      const obt = subjObtained(s);
+      const max = subjMax(s);
+      const pct = max > 0 ? (obt / max) * 100 : 0;
+      const cells: any[] = [String(i + 1), s.subject];
+      exams.forEach((k) => {
+        const examMax = examMaxFor(s, k);
+        const m = Number(s[k] || 0);
+        const examPct = examMax > 0 ? (m / examMax) * 100 : 0;
+        cells.push(
+          examMax > 0 && (isGradeMode ? m > 0 : true)
+            ? isGradeMode
+              ? String(m)
+              : `${m} / ${examMax}`
+            : "—",
+          isGradeMode
+            ? String(s[EXAM_META[k].gradeKey] || "—")
+            : examMax > 0
+            ? calculateGrade(examPct)
+            : "—"
+        );
+      });
+      if (!isGradeMode) cells.push(String(obt), String(max), calculateGrade(pct));
+      return cells;
+    }),
+    theme: "grid",
+    headStyles: { fillColor: GREEN_DARK, textColor: WHITE, fontStyle: "bold", fontSize: 7.5, halign: "center", valign: "middle" },
+    bodyStyles: { fontSize: 8, halign: "center", minCellHeight: 7 },
+    alternateRowStyles: { fillColor: [245, 250, 245] },
+    columnStyles: colStyles,
+    tableWidth: TABLE_W,
+    margin: { left: 12, right: 12 },
+  });
 
   const finalY = (doc as any).lastAutoTable.finalY + 4;
 
