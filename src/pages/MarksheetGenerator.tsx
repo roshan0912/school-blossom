@@ -275,6 +275,13 @@ export default function MarksheetGenerator() {
   const gradeKeyOf = (k: ExamKey) =>
     ({ ut1: "gUt1", halfYearly: "gHalfYearly", ut2: "gUt2", annual: "gAnnual" } as const)[k];
 
+  // Grade that will print beside the marks for this exam (auto-calculated)
+  const gradeFor = (row: SubjectRow, k: ExamKey) => {
+    const max = maxFor(row, k);
+    if (!max) return "—";
+    return calculateGrade((Number(row[k] || 0) / max) * 100);
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="page-header">
@@ -338,7 +345,7 @@ export default function MarksheetGenerator() {
             <div>
               <Label className="text-sm">Grade based report card</Label>
               <p className="text-xs text-muted-foreground">
-                Auto-enabled for Play Group &amp; Nursery — A, B, C grades instead of marks
+                Auto-enabled for Play Group &amp; Nursery — marks and grades side by side
               </p>
             </div>
             <Switch
@@ -414,7 +421,7 @@ export default function MarksheetGenerator() {
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-base font-semibold">
-                {gradeMode ? "Subjects / Activities & Grades" : "Subjects & Marks"}
+                {gradeMode ? "Activities — Marks & Grades" : "Subjects — Marks & Grades"}
               </Label>
               <p className="text-xs text-muted-foreground">
                 {VARIANT_TITLES[variant].subtitle}
