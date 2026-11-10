@@ -6,3 +6,7 @@
 - [x] Show a dismissible recent-updates card on opening, with a way to reopen it.
 - [x] Verify signed-in workbook download, notice dismissal/reopening, theme persistence and screen layouts.
 - [ ] Verify batch PDF export with accessible saved report cards; blocked because the requesting account has no accessible saved cards.
+- [ ] Make Playgroup/Nursery grade-only and let other classes choose marks, grades, or both.
+- [ ] Add saved exam-column and print-style customization to report cards.
+- [ ] Generate a two-page A4 landscape half-fold report card with school cover and interior results.
+- [ ] Verify customization, saved settings, and exported PDF layout.
