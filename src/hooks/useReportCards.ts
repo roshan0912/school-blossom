@@ -21,6 +21,7 @@ export interface SavedReportCard {
   total_days: number;
   present_days: number;
   subjects: ReportCardSubject[];
+  layout_settings: { exams?: string[]; displayMode?: "marks" | "grades" | "both"; printStyle?: "forest" | "royal" | "monochrome" } | null;
   updated_at: string;
 }
 
@@ -88,6 +89,7 @@ export function useSaveReportCard() {
       total_days: number;
       present_days: number;
       subjects: ReportCardSubject[];
+      layout_settings: { exams: string[]; displayMode: "marks" | "grades" | "both"; printStyle: "forest" | "royal" | "monochrome" };
     }) => {
       const { data, error } = await supabase
         .from("report_cards")

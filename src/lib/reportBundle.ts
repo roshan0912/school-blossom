@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { generateReportCardPDF, VARIANT_EXAMS, examMaxFor, type ReportSubjectRow, type ReportVariant } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
+import { resolveReportCardSettings } from "@/lib/reportCardSettings";
 
 const gradePoints: Record<string, number> = { "A+": 7, A: 6, "B+": 5, B: 4, C: 3, D: 2, E: 1 };
 const gradeKeys = { ut1: "gUt1", halfYearly: "gHalfYearly", ut2: "gUt2", annual: "gAnnual" } as const;
@@ -38,13 +39,14 @@ export async function downloadReportBundle(scope: "school" | "cards", variant: R
     progress(`Preparing report card ${index + 1} of ${cards?.length || 0}…`);
     const subjects = (card.subjects as unknown as ReportSubjectRow[]).map(s => ({ ...s, utMarks: s.utMarks ?? 50 }));
     const className = student.classes?.name || "—";
-    const grades = /play\s*group|playgroup|nursery|pre[- ]?nursery|pg\b/i.test(className) || subjects.some(s => s.gUt1 || s.gHalfYearly || s.gUt2 || s.gAnnual);
+    const settings = resolveReportCardSettings(className, card.layout_settings as Parameters<typeof resolveReportCardSettings>[1]);
+    const grades = settings.displayMode === "grades";
     const blob = await generateReportCardPDF({
       studentName: student.name, rollNo: student.roll_no || "—", className,
       academicYear: card.academic_year, houseName: card.house_name || "—",
       height: card.height || "—", weight: card.weight || "—", totalDays: card.total_days, presentDays: card.present_days,
       dob: student.date_of_birth || "—", fatherName: student.parent_name || "—", motherName: student.mother_name || "—",
-      photoUrl: student.photo_url, variant, mode: grades ? "grades" : "marks", subjects,
+      photoUrl: student.photo_url, variant, mode: grades ? "grades" : "marks", settings, subjects,
       ...reportSummary(subjects, variant, grades),
     }, "blob");
     if (!blob) throw new Error("Could not create a report card.");

@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794361802434,
+      "tag": "0000_add_report_card_layout_settings",
+      "breakpoints": true
+    }
+  ]
+}

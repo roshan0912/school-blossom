@@ -3,8 +3,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Download, Loader2, Save, CheckCircle2, Pencil, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Trash2, Download, Loader2, Save, CheckCircle2, Pencil, FileText, Columns3 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -20,6 +20,7 @@ import {
   type ReportVariant,
 } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
+import { REPORT_EXAM_OPTIONS, resolveReportCardSettings, toggleReportExam, type ReportCardSettings, type ReportExamKey } from "@/lib/reportCardSettings";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -90,9 +91,6 @@ const emptyRow = (subject = ""): SubjectRow => ({
   gAnnual: "",
 });
 
-const isPrePrimaryClass = (name?: string | null) =>
-  !!name && /play\s*group|playgroup|nursery|pre[- ]?nursery|pg\b/i.test(name);
-
 export default function MarksheetGenerator() {
   const { data: students, isLoading: studentsLoading } = useStudents();
 
@@ -100,8 +98,7 @@ export default function MarksheetGenerator() {
   const [academicYear, setAcademicYear] = useState("2025-2026");
   const [houseName, setHouseName] = useState("");
   const [variant, setVariant] = useState<ReportVariant>("final");
-  const [gradeMode, setGradeMode] = useState(false);
-  const [gradeModeTouched, setGradeModeTouched] = useState(false);
+  const [reportSettings, setReportSettings] = useState<ReportCardSettings>(() => resolveReportCardSettings(null));
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [totalDays, setTotalDays] = useState("");
@@ -123,6 +120,7 @@ export default function MarksheetGenerator() {
     [students, selectedStudentId]
   );
   const className = (selectedStudent as any)?.classes?.name as string | undefined;
+  const settings = resolveReportCardSettings(className, reportSettings);
 
   const loadSavedCard = (studentId: string, year: string) => {
     setSelectedStudentId(studentId);
@@ -130,11 +128,12 @@ export default function MarksheetGenerator() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Auto-switch to grade based assessment for Play Group / Nursery
+  // Defaults are class-aware; Playgroup and Nursery remain grade-only.
   useEffect(() => {
-    if (!className || gradeModeTouched) return;
-    const pre = isPrePrimaryClass(className);
-    setGradeMode(pre);
+    if (!className) return;
+    const defaults = resolveReportCardSettings(className);
+    setReportSettings((current) => ({ ...current, displayMode: defaults.displayMode }));
+    const pre = defaults.displayMode === "grades";
     setSubjects((prev) => {
       const untouched = prev.every(
         (r) => !r.ut1 && !r.halfYearly && !r.ut2 && !r.annual && !r.gUt1 && !r.gHalfYearly
@@ -142,7 +141,7 @@ export default function MarksheetGenerator() {
       if (!untouched) return prev;
       return (pre ? PRE_PRIMARY_SUBJECTS : DEFAULT_SUBJECTS).map((s) => emptyRow(s));
     });
-  }, [className, gradeModeTouched]);
+  }, [className]);
 
   // Load previously saved marks whenever a student / year is picked
   useEffect(() => {
@@ -152,14 +151,15 @@ export default function MarksheetGenerator() {
     setWeight(savedCard.weight || "");
     setTotalDays(savedCard.total_days ? String(savedCard.total_days) : "");
     setPresentDays(savedCard.present_days ? String(savedCard.present_days) : "");
+    setReportSettings(resolveReportCardSettings(className, savedCard.layout_settings));
     if (Array.isArray(savedCard.subjects) && savedCard.subjects.length > 0) {
       setSubjects(
         savedCard.subjects.map((s: any) => ({ ...emptyRow(), ...s, utMarks: s.utMarks ?? 50 }))
       );
     }
-  }, [savedCard, selectedStudentId]);
+  }, [savedCard, selectedStudentId, className]);
 
-  const exams = VARIANT_EXAMS[variant] as ExamKey[];
+  const exams = settings.exams as ExamKey[];
   const maxFor = (row: SubjectRow, key: ExamKey) =>
     key === "ut1" || key === "ut2" ? row.utMarks || 0 : row.totalMarks || 0;
 
@@ -199,6 +199,7 @@ export default function MarksheetGenerator() {
     return Object.keys(GRADE_POINTS).find((g) => GRADE_POINTS[g] === rounded) || "B";
   }, [subjects, exams]);
 
+  const gradeMode = settings.displayMode === "grades";
   const overallGrade = gradeMode ? gradeOverall : calculateGrade(percentage);
 
   const buildPayload = () => ({
@@ -210,6 +211,7 @@ export default function MarksheetGenerator() {
     total_days: Number(totalDays) || 0,
     present_days: Number(presentDays) || 0,
     subjects: subjects.filter((s) => s.subject.trim()),
+    layout_settings: settings,
   });
 
   const handleSave = async () => {
@@ -239,6 +241,7 @@ export default function MarksheetGenerator() {
       houseName: houseName || "—",
       variant,
       mode: gradeMode ? "grades" : "marks",
+      settings,
       academicYear,
       dob: selectedStudent.date_of_birth || "—",
       fatherName: selectedStudent.parent_name || "—",
@@ -341,20 +344,44 @@ export default function MarksheetGenerator() {
               </SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-lg border p-3">
-            <div>
-              <Label className="text-sm">Grade based report card</Label>
-              <p className="text-xs text-muted-foreground">
-                Auto-enabled for Play Group &amp; Nursery — marks and grades side by side
-              </p>
+          <div className="sm:col-span-2 space-y-3 rounded-lg border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Label className="text-sm">Assessment columns</Label>
+                <p className="text-xs text-muted-foreground">Choose the exams to show on this report card.</p>
+              </div>
+              {className && resolveReportCardSettings(className).displayMode === "grades" ? (
+                <Badge variant="secondary">Grades only · Playgroup &amp; Nursery</Badge>
+              ) : (
+                <Select value={settings.displayMode} onValueChange={(value) => setReportSettings((current) => ({ ...current, displayMode: value as ReportCardSettings["displayMode"] }))}>
+                  <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Marks + grades</SelectItem>
+                    <SelectItem value="marks">Marks only</SelectItem>
+                    <SelectItem value="grades">Grades only</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-            <Switch
-              checked={gradeMode}
-              onCheckedChange={(v) => {
-                setGradeMode(v);
-                setGradeModeTouched(true);
-              }}
-            />
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {REPORT_EXAM_OPTIONS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={settings.exams.includes(key)} onCheckedChange={() => setReportSettings((current) => ({ ...current, exams: toggleReportExam(current.exams, key) }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+              <div className="flex items-center gap-2 text-sm font-medium"><Columns3 className="h-4 w-4 text-primary" /> Print design</div>
+              <Select value={settings.printStyle} onValueChange={(value) => setReportSettings((current) => ({ ...current, printStyle: value as ReportCardSettings["printStyle"] }))}>
+                <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="forest">School green</SelectItem>
+                  <SelectItem value="royal">Royal blue</SelectItem>
+                  <SelectItem value="monochrome">Black &amp; white</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:col-span-2">
             <div className="space-y-1">
@@ -421,7 +448,7 @@ export default function MarksheetGenerator() {
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-base font-semibold">
-                {gradeMode ? "Activities — Marks & Grades" : "Subjects — Marks & Grades"}
+                {gradeMode ? "Activities — Grades" : "Subjects — Assessment"}
               </Label>
               <p className="text-xs text-muted-foreground">
                 {VARIANT_TITLES[variant].subtitle}
@@ -434,17 +461,17 @@ export default function MarksheetGenerator() {
 
           <div className="overflow-x-auto">
             <div className="min-w-[640px] space-y-2">
-              {gradeMode ? (
-                <>
+              {
                   <div
                     className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
-                    style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 128px) 40px` }}
+                    style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, ${settings.displayMode === "both" ? 150 : 86}px) 40px` }}
                   >
-                    <span>Subject / Activity</span>
+                    <span>{gradeMode ? "Subject / Activity" : "Subject"}</span>
+                    {!gradeMode && <><span className="text-center">UT Max</span><span className="text-center">Term Max</span></>}
                     {exams.map((k) => (
                       <span key={k} className="text-center leading-tight">
                         {EXAM_LABELS[k]}
-                        <span className="block text-[10px] font-normal">Marks | Grade</span>
+                        <span className="block text-[10px] font-normal">{settings.displayMode === "both" ? "Marks + Grade" : gradeMode ? "Grade" : "Marks"}</span>
                       </span>
                     ))}
                     <span />
@@ -453,30 +480,35 @@ export default function MarksheetGenerator() {
                     <div
                       key={i}
                       className="grid gap-2 items-center"
-                      style={{ gridTemplateColumns: `1fr repeat(${exams.length}, 128px) 40px` }}
+                      style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, ${settings.displayMode === "both" ? 150 : 86}px) 40px` }}
                     >
                       <Input
-                        placeholder="Activity name"
+                        placeholder={gradeMode ? "Activity name" : "Subject name"}
                         value={s.subject}
                         onChange={(e) => updateSubject(i, "subject", e.target.value)}
                       />
+                      {!gradeMode && <>
+                        <Input type="number" value={s.utMarks || ""} onChange={(e) => updateSubject(i, "utMarks", e.target.value)} className="text-center" aria-label="Unit test maximum marks" />
+                        <Input type="number" value={s.totalMarks || ""} onChange={(e) => updateSubject(i, "totalMarks", e.target.value)} className="text-center" aria-label="Term maximum marks" />
+                      </>}
                       {exams.map((k) => {
                         const gk = gradeKeyOf(k);
                         return (
-                          <div key={k} className="flex gap-1">
-                            <Input
+                          <div key={k} className={`flex gap-1 ${settings.displayMode === "both" ? "" : "justify-center"}`}>
+                            {settings.displayMode !== "grades" && <Input
                               type="number"
                               value={s[k] || ""}
                               onChange={(e) => updateSubject(i, k, e.target.value)}
                               max={maxFor(s, k)}
-                              className="w-12 px-1 text-center"
+                              className={`${settings.displayMode === "both" ? "w-16" : "w-full"} px-1 text-center`}
                               placeholder="0"
-                            />
-                            <Select
+                              aria-label={`${EXAM_LABELS[k]} marks`}
+                            />}
+                            {settings.displayMode !== "marks" && <Select
                               value={s[gk] || ""}
                               onValueChange={(v) => updateSubject(i, gk, v)}
                             >
-                              <SelectTrigger className="px-2">
+                              <SelectTrigger className={`${settings.displayMode === "both" ? "w-20" : "w-24"} px-2`}>
                                 <SelectValue placeholder="Grade" />
                               </SelectTrigger>
                               <SelectContent>
@@ -484,7 +516,7 @@ export default function MarksheetGenerator() {
                                   <SelectItem key={g} value={g}>{g}</SelectItem>
                                 ))}
                               </SelectContent>
-                            </Select>
+                            </Select>}
                           </div>
                         );
                       })}
@@ -500,71 +532,7 @@ export default function MarksheetGenerator() {
                       </Button>
                     </div>
                   ))}
-                </>
-              ) : (
-                <>
-                  <div
-                    className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
-                    style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, 110px) 40px` }}
-                  >
-                    <span>Subject</span>
-                    <span className="text-center">UT Max</span>
-                    <span className="text-center">Term Max</span>
-                    {exams.map((k) => (
-                      <span key={k} className="text-center leading-tight">
-                        {EXAM_LABELS[k]}
-                        <span className="block text-[10px] font-normal">Marks | Grade</span>
-                      </span>
-                    ))}
-                    <span />
-                  </div>
-                  {subjects.map((s, i) => (
-                    <div
-                      key={i}
-                      className="grid gap-2 items-center"
-                      style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, 90px) 40px` }}
-                    >
-                      <Input
-                        placeholder="Subject name"
-                        value={s.subject}
-                        onChange={(e) => updateSubject(i, "subject", e.target.value)}
-                      />
-                      <Input
-                        type="number"
-                        value={s.utMarks || ""}
-                        onChange={(e) => updateSubject(i, "utMarks", e.target.value)}
-                        className="text-center"
-                      />
-                      <Input
-                        type="number"
-                        value={s.totalMarks || ""}
-                        onChange={(e) => updateSubject(i, "totalMarks", e.target.value)}
-                        className="text-center"
-                      />
-                      {exams.map((k) => (
-                        <Input
-                          key={k}
-                          type="number"
-                          value={s[k] || ""}
-                          onChange={(e) => updateSubject(i, k, e.target.value)}
-                          max={maxFor(s, k)}
-                          className="text-center"
-                        />
-                      ))}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeSubject(i)}
-                        disabled={subjects.length === 1}
-                        className="text-destructive h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </>
-              )}
+              }
             </div>
           </div>
         </div>

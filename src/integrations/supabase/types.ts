@@ -762,6 +762,7 @@ export type Database = {
           height: string | null
           house_name: string | null
           id: string
+          layout_settings: Json
           present_days: number
           student_id: string
           subjects: Json
@@ -775,6 +776,7 @@ export type Database = {
           height?: string | null
           house_name?: string | null
           id?: string
+          layout_settings?: Json
           present_days?: number
           student_id: string
           subjects?: Json
@@ -788,6 +790,7 @@ export type Database = {
           height?: string | null
           house_name?: string | null
           id?: string
+          layout_settings?: Json
           present_days?: number
           student_id?: string
           subjects?: Json

@@ -45,3 +45,10 @@ export function resolveReportCardSettings(
 
   return { exams: validExams, displayMode, printStyle };
 }
+
+export function toggleReportExam(exams: ReportExamKey[], exam: ReportExamKey): ReportExamKey[] {
+  if (exams.includes(exam)) {
+    return exams.length > 1 ? exams.filter((item) => item !== exam) : exams;
+  }
+  return REPORT_EXAM_OPTIONS.map(({ key }) => key).filter((key) => exams.includes(key) || key === exam);
+}
