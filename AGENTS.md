@@ -3,4 +3,4 @@
 - Keep bulk report export in a shared client-side service and reuse the existing report-card PDF renderer with an optional Blob output, so batch and individual downloads retain identical print layouts.
 - Use a shared download control on the overview, reports page and saved report cards, so loading and error handling remain consistent.
 - Mount the recent-updates dialog once at app level and track dismissal per browser-tab session, so opening notices do not repeat during navigation and can be reopened from the header.
-- Keep report-card layout preferences in a shared typed model stored with each saved card, so editing and bulk PDF downloads preserve the chosen print design.
+- Keep report settings and custom assessment definitions in one shared typed model saved with each card, so editing, single PDFs and bulk downloads use identical columns and print design.

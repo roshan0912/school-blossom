@@ -6,10 +6,16 @@ import type { ReportCardSettings } from "@/lib/reportCardSettings";
 export interface ReportCardSubject {
   subject: string;
   totalMarks: number;
+  utMarks?: number;
   ut1: number;
   halfYearly: number;
   ut2: number;
   annual: number;
+  gUt1?: string;
+  gHalfYearly?: string;
+  gUt2?: string;
+  gAnnual?: string;
+  assessments?: Record<string, { marks?: number; grade?: string; maxMarks?: number }>;
 }
 
 export interface SavedReportCard {

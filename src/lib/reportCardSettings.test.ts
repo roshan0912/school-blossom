@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_REPORT_CARD_SETTINGS, resolveReportCardSettings, toggleReportExam } from "./reportCardSettings";
+import {
+  DEFAULT_REPORT_CARD_SETTINGS,
+  removeAssessmentColumn,
+  reportColumnsForExams,
+  resolveReportCardSettings,
+  toggleAssessmentExam,
+  toggleReportExam,
+} from "./reportCardSettings";
 
 describe("report card settings", () => {
   it("keeps Playgroup grade-only regardless of saved mode", () => {
@@ -16,6 +23,7 @@ describe("report card settings", () => {
 
   it("defaults to all four examination columns", () => {
     expect(DEFAULT_REPORT_CARD_SETTINGS.exams).toEqual(["ut1", "halfYearly", "ut2", "annual"]);
+    expect(DEFAULT_REPORT_CARD_SETTINGS.columns.map(({ id }) => id)).toEqual(["ut1", "halfYearly", "ut2", "annual"]);
   });
 
   it("allows other classes to choose grades-only or marks-only", () => {
@@ -31,5 +39,26 @@ describe("report card settings", () => {
     expect(toggleReportExam(["ut1"], "annual")).toEqual(["ut1", "annual"]);
     expect(toggleReportExam(["ut1", "annual"], "ut1")).toEqual(["annual"]);
     expect(toggleReportExam(["annual"], "annual")).toEqual(["annual"]);
+  });
+
+  it("adds and removes configurable custom assessment columns", () => {
+    const configured = resolveReportCardSettings("Class IV", {
+      columns: [...DEFAULT_REPORT_CARD_SETTINGS.columns, { id: "project", label: "Project", maxMarks: 25 }],
+    });
+    expect(configured.columns.at(-1)).toEqual({ id: "project", label: "Project", maxMarks: 25 });
+    expect(removeAssessmentColumn(configured, "project").columns).toHaveLength(4);
+  });
+
+  it("keeps at least one assessment column when removing defaults", () => {
+    const oneColumn = { ...DEFAULT_REPORT_CARD_SETTINGS, columns: [DEFAULT_REPORT_CARD_SETTINGS.columns[0]], exams: ["ut1"] as const };
+    expect(toggleAssessmentExam(oneColumn, "ut1").columns).toHaveLength(1);
+    expect(removeAssessmentColumn(oneColumn, "ut1").columns).toHaveLength(1);
+  });
+
+  it("filters standard columns to the selected report exams and retains custom columns", () => {
+    const settings = resolveReportCardSettings("Class IV", {
+      columns: [...DEFAULT_REPORT_CARD_SETTINGS.columns, { id: "project", label: "Project", maxMarks: 25 }],
+    });
+    expect(reportColumnsForExams(settings, ["annual"]).map(({ id }) => id)).toEqual(["annual", "project"]);
   });
 });
