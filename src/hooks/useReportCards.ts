@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { ReportCardSettings } from "@/lib/reportCardSettings";
 
 export interface ReportCardSubject {
   subject: string;
@@ -21,7 +22,7 @@ export interface SavedReportCard {
   total_days: number;
   present_days: number;
   subjects: ReportCardSubject[];
-  layout_settings: { exams?: string[]; displayMode?: "marks" | "grades" | "both"; printStyle?: "forest" | "royal" | "monochrome" } | null;
+  layout_settings: Partial<ReportCardSettings> | null;
   updated_at: string;
 }
 
@@ -89,7 +90,7 @@ export function useSaveReportCard() {
       total_days: number;
       present_days: number;
       subjects: ReportCardSubject[];
-      layout_settings: { exams: string[]; displayMode: "marks" | "grades" | "both"; printStyle: "forest" | "royal" | "monochrome" };
+      layout_settings: ReportCardSettings;
     }) => {
       const { data, error } = await supabase
         .from("report_cards")

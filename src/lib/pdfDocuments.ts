@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatINR, calculateGrade } from "./pdfGenerator";
 import QRCode from "qrcode";
+import type { ReportCardSettings } from "./reportCardSettings";
 
 // ============== SCHOOL BRANDING CONSTANTS ==============
 const SCHOOL_NAME = "VEDANTA VALLEY PUBLIC SCHOOL";
@@ -533,6 +534,7 @@ export interface ReportCardData {
   variant?: ReportVariant;
   /** "grades" for Play Group / Nursery (A, B, C ... only) */
   mode?: "marks" | "grades";
+  settings?: ReportCardSettings;
   subjects: ReportSubjectRow[];
   overallGrade: string;
   percentage: number;

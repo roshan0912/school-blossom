@@ -461,78 +461,76 @@ export default function MarksheetGenerator() {
 
           <div className="overflow-x-auto">
             <div className="min-w-[640px] space-y-2">
-              {
-                  <div
-                    className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
-                    style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, ${settings.displayMode === "both" ? 150 : 86}px) 40px` }}
+              <div
+                className="grid gap-2 text-xs font-medium text-muted-foreground px-1"
+                style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, ${settings.displayMode === "both" ? 150 : 86}px) 40px` }}
+              >
+                <span>{gradeMode ? "Subject / Activity" : "Subject"}</span>
+                {!gradeMode && <><span className="text-center">UT Max</span><span className="text-center">Term Max</span></>}
+                {exams.map((k) => (
+                  <span key={k} className="text-center leading-tight">
+                    {EXAM_LABELS[k]}
+                    <span className="block text-[10px] font-normal">{settings.displayMode === "both" ? "Marks + Grade" : gradeMode ? "Grade" : "Marks"}</span>
+                  </span>
+                ))}
+                <span />
+              </div>
+              {subjects.map((s, i) => (
+                <div
+                  key={i}
+                  className="grid gap-2 items-center"
+                  style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, ${settings.displayMode === "both" ? 150 : 86}px) 40px` }}
+                >
+                  <Input
+                    placeholder={gradeMode ? "Activity name" : "Subject name"}
+                    value={s.subject}
+                    onChange={(e) => updateSubject(i, "subject", e.target.value)}
+                  />
+                  {!gradeMode && <>
+                    <Input type="number" value={s.utMarks || ""} onChange={(e) => updateSubject(i, "utMarks", e.target.value)} className="text-center" aria-label="Unit test maximum marks" />
+                    <Input type="number" value={s.totalMarks || ""} onChange={(e) => updateSubject(i, "totalMarks", e.target.value)} className="text-center" aria-label="Term maximum marks" />
+                  </>}
+                  {exams.map((k) => {
+                    const gk = gradeKeyOf(k);
+                    return (
+                      <div key={k} className={`flex gap-1 ${settings.displayMode === "both" ? "" : "justify-center"}`}>
+                        {settings.displayMode !== "grades" && <Input
+                          type="number"
+                          value={s[k] || ""}
+                          onChange={(e) => updateSubject(i, k, e.target.value)}
+                          max={maxFor(s, k)}
+                          className={`${settings.displayMode === "both" ? "w-16" : "w-full"} px-1 text-center`}
+                          placeholder="0"
+                          aria-label={`${EXAM_LABELS[k]} marks`}
+                        />}
+                        {settings.displayMode !== "marks" && <Select
+                          value={s[gk] || ""}
+                          onValueChange={(v) => updateSubject(i, gk, v)}
+                        >
+                          <SelectTrigger className={`${settings.displayMode === "both" ? "w-20" : "w-24"} px-2`}>
+                            <SelectValue placeholder="Grade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GRADE_OPTIONS.map((g) => (
+                              <SelectItem key={g} value={g}>{g}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>}
+                      </div>
+                    );
+                  })}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeSubject(i)}
+                    disabled={subjects.length === 1}
+                    className="text-destructive h-8 w-8"
                   >
-                    <span>{gradeMode ? "Subject / Activity" : "Subject"}</span>
-                    {!gradeMode && <><span className="text-center">UT Max</span><span className="text-center">Term Max</span></>}
-                    {exams.map((k) => (
-                      <span key={k} className="text-center leading-tight">
-                        {EXAM_LABELS[k]}
-                        <span className="block text-[10px] font-normal">{settings.displayMode === "both" ? "Marks + Grade" : gradeMode ? "Grade" : "Marks"}</span>
-                      </span>
-                    ))}
-                    <span />
-                  </div>
-                  {subjects.map((s, i) => (
-                    <div
-                      key={i}
-                      className="grid gap-2 items-center"
-                      style={{ gridTemplateColumns: `1fr 70px 70px repeat(${exams.length}, ${settings.displayMode === "both" ? 150 : 86}px) 40px` }}
-                    >
-                      <Input
-                        placeholder={gradeMode ? "Activity name" : "Subject name"}
-                        value={s.subject}
-                        onChange={(e) => updateSubject(i, "subject", e.target.value)}
-                      />
-                      {!gradeMode && <>
-                        <Input type="number" value={s.utMarks || ""} onChange={(e) => updateSubject(i, "utMarks", e.target.value)} className="text-center" aria-label="Unit test maximum marks" />
-                        <Input type="number" value={s.totalMarks || ""} onChange={(e) => updateSubject(i, "totalMarks", e.target.value)} className="text-center" aria-label="Term maximum marks" />
-                      </>}
-                      {exams.map((k) => {
-                        const gk = gradeKeyOf(k);
-                        return (
-                          <div key={k} className={`flex gap-1 ${settings.displayMode === "both" ? "" : "justify-center"}`}>
-                            {settings.displayMode !== "grades" && <Input
-                              type="number"
-                              value={s[k] || ""}
-                              onChange={(e) => updateSubject(i, k, e.target.value)}
-                              max={maxFor(s, k)}
-                              className={`${settings.displayMode === "both" ? "w-16" : "w-full"} px-1 text-center`}
-                              placeholder="0"
-                              aria-label={`${EXAM_LABELS[k]} marks`}
-                            />}
-                            {settings.displayMode !== "marks" && <Select
-                              value={s[gk] || ""}
-                              onValueChange={(v) => updateSubject(i, gk, v)}
-                            >
-                              <SelectTrigger className={`${settings.displayMode === "both" ? "w-20" : "w-24"} px-2`}>
-                                <SelectValue placeholder="Grade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {GRADE_OPTIONS.map((g) => (
-                                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>}
-                          </div>
-                        );
-                      })}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeSubject(i)}
-                        disabled={subjects.length === 1}
-                        className="text-destructive h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-              }
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
