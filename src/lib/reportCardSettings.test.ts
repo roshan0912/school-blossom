@@ -53,7 +53,7 @@ describe("report card settings", () => {
   });
 
   it("keeps at least one assessment column when removing defaults", () => {
-    const oneColumn = { ...DEFAULT_REPORT_CARD_SETTINGS, columns: [DEFAULT_REPORT_CARD_SETTINGS.columns[0]], exams: ["ut1"] };
+    const oneColumn = { ...DEFAULT_REPORT_CARD_SETTINGS, columns: [DEFAULT_REPORT_CARD_SETTINGS.columns[0]], exams: ["ut1" as const] };
     expect(toggleAssessmentExam(oneColumn, "ut1").columns).toHaveLength(1);
     expect(removeAssessmentColumn(oneColumn, "ut1").columns).toHaveLength(1);
   });
