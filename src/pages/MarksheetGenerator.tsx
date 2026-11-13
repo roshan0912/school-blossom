@@ -20,7 +20,15 @@ import {
   type ReportVariant,
 } from "@/lib/pdfDocuments";
 import { calculateGrade } from "@/lib/pdfGenerator";
-import { REPORT_EXAM_OPTIONS, resolveReportCardSettings, toggleReportExam, type ReportCardSettings, type ReportExamKey } from "@/lib/reportCardSettings";
+import {
+  DEFAULT_REPORT_CARD_SETTINGS,
+  REPORT_EXAM_OPTIONS,
+  resolveReportCardSettings,
+  toggleAssessmentExam,
+  setReportDisplayMode,
+  type ReportCardSettings,
+  type ReportExamKey,
+} from "@/lib/reportCardSettings";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -136,7 +144,7 @@ export default function MarksheetGenerator() {
     const pre = defaults.displayMode === "grades";
     setSubjects((prev) => {
       const untouched = prev.every(
-        (r) => !r.ut1 && !r.halfYearly && !r.ut2 && !r.annual && !r.gUt1 && !r.gHalfYearly
+        (r) => !r.ut1 && !r.halfYearly && !r.ut2 && !r.annual && !r.gUt1 && !r.gHalfYearly && !r.gUt2 && !r.gAnnual
       );
       if (!untouched) return prev;
       return (pre ? PRE_PRIMARY_SUBJECTS : DEFAULT_SUBJECTS).map((s) => emptyRow(s));
@@ -166,14 +174,67 @@ export default function MarksheetGenerator() {
   const addSubject = () => setSubjects([...subjects, emptyRow()]);
   const removeSubject = (i: number) => setSubjects(subjects.filter((_, idx) => idx !== i));
 
+  const gradeKeyOf = (k: ExamKey) =>
+    ({ ut1: "gUt1", halfYearly: "gHalfYearly", ut2: "gUt2", annual: "gAnnual" } as const)[k];
+
   const updateSubject = (i: number, field: keyof SubjectRow, val: string) => {
     const updated = [...subjects];
     const numeric = ["totalMarks", "utMarks", "ut1", "halfYearly", "ut2", "annual"];
+    const isNum = numeric.includes(field as string);
+    const numVal = isNum ? Number(val) || 0 : val;
     updated[i] = {
       ...updated[i],
-      [field]: numeric.includes(field as string) ? Number(val) || 0 : val,
+      [field]: numVal,
     } as SubjectRow;
+
+    // Auto-calculate grade when marks are entered if grade not explicitly chosen
+    if (["ut1", "halfYearly", "ut2", "annual"].includes(field as string)) {
+      const gk = gradeKeyOf(field as ExamKey);
+      const max = maxFor(updated[i], field as ExamKey);
+      if (max > 0 && Number(numVal) > 0 && !updated[i][gk]) {
+        updated[i][gk] = calculateGrade((Number(numVal) / max) * 100);
+      }
+    }
+
     setSubjects(updated);
+  };
+
+  const handleToggleExam = (key: ReportExamKey) => {
+    if (settings.exams.includes(key) && settings.exams.length <= 1) {
+      toast.warning("At least one assessment exam column must remain active.");
+      return;
+    }
+    setReportSettings((current) => {
+      const updated = toggleAssessmentExam(current, key);
+      const examSet = new Set(updated.exams);
+      if (examSet.size === 1) {
+        if (examSet.has("ut1")) setVariant("ut1");
+        else if (examSet.has("halfYearly")) setVariant("halfYearly");
+        else if (examSet.has("ut2")) setVariant("ut2");
+        else if (examSet.has("annual")) setVariant("annual");
+      } else if (examSet.size === 2 && examSet.has("ut1") && examSet.has("halfYearly")) {
+        setVariant("midterm");
+      } else if (examSet.size === 4) {
+        setVariant("final");
+      }
+      return updated;
+    });
+  };
+
+  const handleVariantChange = (v: ReportVariant) => {
+    setVariant(v);
+    const targetExams = VARIANT_EXAMS[v];
+    if (targetExams && targetExams.length > 0) {
+      setReportSettings((current) => {
+        const allowed = new Set(targetExams);
+        const filteredCols = DEFAULT_REPORT_CARD_SETTINGS.columns.filter((c) => c.examKey && allowed.has(c.examKey));
+        return {
+          ...current,
+          exams: targetExams as ReportExamKey[],
+          columns: filteredCols.length > 0 ? filteredCols : current.columns,
+        };
+      });
+    }
   };
 
   const totalObtained = subjects.reduce(
@@ -275,9 +336,6 @@ export default function MarksheetGenerator() {
     );
   }
 
-  const gradeKeyOf = (k: ExamKey) =>
-    ({ ut1: "gUt1", halfYearly: "gHalfYearly", ut2: "gUt2", annual: "gAnnual" } as const)[k];
-
   // Grade that will print beside the marks for this exam (auto-calculated)
   const gradeFor = (row: SubjectRow, k: ExamKey) => {
     const max = maxFor(row, k);
@@ -331,7 +389,7 @@ export default function MarksheetGenerator() {
           </div>
           <div className="space-y-1 sm:col-span-2">
             <Label>Report Card Type</Label>
-            <Select value={variant} onValueChange={(v) => setVariant(v as ReportVariant)}>
+            <Select value={variant} onValueChange={(v) => handleVariantChange(v as ReportVariant)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -344,16 +402,23 @@ export default function MarksheetGenerator() {
               </SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-2 space-y-3 rounded-lg border p-3">
+          <div className="sm:col-span-2 space-y-3 rounded-lg border p-3.5 bg-muted/20">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <Label className="text-sm">Assessment columns</Label>
-                <p className="text-xs text-muted-foreground">Choose the exams to show on this report card.</p>
+                <Label className="text-sm font-semibold">Assessment Columns</Label>
+                <p className="text-xs text-muted-foreground">Select the examination columns to include on this report card.</p>
               </div>
               {className && resolveReportCardSettings(className).displayMode === "grades" ? (
                 <Badge variant="secondary">Grades only · Playgroup &amp; Nursery</Badge>
               ) : (
-                <Select value={settings.displayMode} onValueChange={(value) => setReportSettings((current) => ({ ...current, displayMode: value as ReportCardSettings["displayMode"] }))}>
+                <Select
+                  value={settings.displayMode}
+                  onValueChange={(value) =>
+                    setReportSettings((current) =>
+                      setReportDisplayMode(current, value as ReportCardSettings["displayMode"])
+                    )
+                  }
+                >
                   <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="both">Marks + grades</SelectItem>
@@ -363,13 +428,27 @@ export default function MarksheetGenerator() {
                 </Select>
               )}
             </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {REPORT_EXAM_OPTIONS.map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={settings.exams.includes(key)} onCheckedChange={() => setReportSettings((current) => ({ ...current, exams: toggleReportExam(current.exams, key) }))} />
-                  {label}
-                </label>
-              ))}
+            <div className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
+              {REPORT_EXAM_OPTIONS.map(({ key, label }) => {
+                const id = `exam-checkbox-${key}`;
+                const isChecked = settings.exams.includes(key);
+                return (
+                  <div key={key} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={id}
+                      checked={isChecked}
+                      onCheckedChange={() => handleToggleExam(key)}
+                      className="cursor-pointer"
+                    />
+                    <label
+                      htmlFor={id}
+                      className="text-sm font-medium leading-none cursor-pointer select-none text-foreground hover:text-primary transition-colors"
+                    >
+                      {label}
+                    </label>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex flex-wrap items-center gap-3 border-t pt-3">
               <div className="flex items-center gap-2 text-sm font-medium"><Columns3 className="h-4 w-4 text-primary" /> Print design</div>
@@ -508,7 +587,7 @@ export default function MarksheetGenerator() {
                           onValueChange={(v) => updateSubject(i, gk, v)}
                         >
                           <SelectTrigger className={`${settings.displayMode === "both" ? "w-20" : "w-24"} px-2`}>
-                            <SelectValue placeholder="Grade" />
+                            <SelectValue placeholder={gradeFor(s, k) !== "—" ? gradeFor(s, k) : "Grade"} />
                           </SelectTrigger>
                           <SelectContent>
                             {GRADE_OPTIONS.map((g) => (

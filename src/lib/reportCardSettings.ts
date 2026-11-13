@@ -44,12 +44,41 @@ export function resolveReportCardSettings(
   settings?: Partial<ReportCardSettings> | null,
 ): ReportCardSettings {
   const validKeys = new Set(REPORT_EXAM_OPTIONS.map(({ key }) => key));
-  const defaultColumns = Array.isArray(settings?.exams)
-    ? DEFAULT_REPORT_CARD_SETTINGS.columns.filter(({ examKey }) => settings.exams?.includes(examKey as ReportExamKey))
-    : DEFAULT_REPORT_CARD_SETTINGS.columns;
-  const sourceColumns = Array.isArray(settings?.columns) ? settings.columns : defaultColumns;
+  const examOrder = REPORT_EXAM_OPTIONS.map(({ key }) => key);
+
+  // Determine base columns
+  let baseColumns: ReportAssessmentColumn[];
+  if (Array.isArray(settings?.columns) && settings.columns.length > 0) {
+    baseColumns = settings.columns;
+  } else {
+    baseColumns = DEFAULT_REPORT_CARD_SETTINGS.columns;
+  }
+
+  // If settings specifies exams, sync the exam columns with settings.exams
+  if (Array.isArray(settings?.exams)) {
+    const requestedExams = new Set(settings.exams.filter((k) => validKeys.has(k)));
+    // If requestedExams is not empty, filter baseColumns
+    if (requestedExams.size > 0) {
+      baseColumns = baseColumns.filter((column) => !column.examKey || requestedExams.has(column.examKey));
+      // Ensure all requested exams are present in baseColumns
+      for (const examKey of settings.exams) {
+        if (validKeys.has(examKey) && !baseColumns.some((c) => c.examKey === examKey)) {
+          const fallback = DEFAULT_REPORT_CARD_SETTINGS.columns.find((c) => c.examKey === examKey);
+          if (fallback) baseColumns.push(fallback);
+        }
+      }
+    }
+  }
+
+  // Sort columns: exam columns in standard examOrder, followed by custom columns
+  baseColumns.sort((a, b) => {
+    const aIdx = a.examKey ? examOrder.indexOf(a.examKey) : 999;
+    const bIdx = b.examKey ? examOrder.indexOf(b.examKey) : 999;
+    return aIdx - bIdx;
+  });
+
   const seenIds = new Set<string>();
-  const columns = sourceColumns.flatMap((column) => {
+  const columns = baseColumns.flatMap((column) => {
     if (!column || typeof column.id !== "string" || !column.id.trim() || seenIds.has(column.id)) return [];
     if (column.examKey && !validKeys.has(column.examKey)) return [];
     seenIds.add(column.id);
@@ -67,6 +96,7 @@ export function resolveReportCardSettings(
       ...(columnMode ? { displayMode: columnMode } : {}),
     }];
   });
+
   const validColumns = columns.length ? columns : [...DEFAULT_REPORT_CARD_SETTINGS.columns];
   const exams = validColumns.flatMap(({ examKey }) => examKey ? [examKey] : []);
   const requestedMode = settings?.displayMode;
@@ -99,10 +129,16 @@ export function toggleReportExam(exams: ReportExamKey[], exam: ReportExamKey): R
 
 export function toggleAssessmentExam(settings: ReportCardSettings, exam: ReportExamKey): ReportCardSettings {
   const exists = settings.columns.some(({ examKey }) => examKey === exam);
+  const examOrder = REPORT_EXAM_OPTIONS.map(({ key }) => key);
   const columns = exists
     ? settings.columns.filter(({ examKey }) => examKey !== exam)
     : [...settings.columns, ...DEFAULT_REPORT_CARD_SETTINGS.columns.filter(({ examKey }) => examKey === exam)];
   if (!columns.length) return settings;
+  columns.sort((a, b) => {
+    const aIdx = a.examKey ? examOrder.indexOf(a.examKey) : 999;
+    const bIdx = b.examKey ? examOrder.indexOf(b.examKey) : 999;
+    return aIdx - bIdx;
+  });
   return { ...settings, columns, exams: columns.flatMap(({ examKey }) => examKey ? [examKey] : []) };
 }
 

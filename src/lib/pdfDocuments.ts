@@ -590,8 +590,16 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
   const logo = await getSchoolLogo();
   const variant: ReportVariant = data.variant ?? "final";
   const settings = resolveReportCardSettings(data.className, data.settings);
-  const columns = reportColumnsForExams(settings, VARIANT_EXAMS[variant]);
-  const meta = VARIANT_TITLES[variant];
+  const activeExams = settings.exams && settings.exams.length > 0 ? settings.exams : VARIANT_EXAMS[variant];
+  const columns = reportColumnsForExams(settings, activeExams);
+  
+  // Resolve title metadata dynamically based on active exams
+  let meta = VARIANT_TITLES[variant] || VARIANT_TITLES.final;
+  if (activeExams.length === 1 && VARIANT_TITLES[activeExams[0] as ReportVariant]) {
+    meta = VARIANT_TITLES[activeExams[0] as ReportVariant];
+  } else if (activeExams.length === 2 && activeExams.includes("ut1") && activeExams.includes("halfYearly")) {
+    meta = VARIANT_TITLES.midterm;
+  }
 
   const forest = { primary: GREEN_DARK, secondary: GREEN_MID, accent: GOLD, pale: LIGHT_GREEN };
   const palette = settings.printStyle === "royal"
@@ -599,149 +607,573 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
     : settings.printStyle === "monochrome"
       ? { primary: BLACK, secondary: GRAY, accent: GRAY, pale: [246, 246, 246] as [number, number, number] }
       : forest;
+
   const pageW = 297;
   const pageH = 210;
-  const foldX = pageW / 2;
+  const foldX = pageW / 2; // 148.5 mm
+  const frontCenterX = foldX + foldX / 2; // 222.75 mm
+  const backCenterX = foldX / 2; // 74.25 mm
+
   const innerCols = columns.map((column) => ({
     ...column,
-    mode: settings.displayMode === "grades" ? "grades" as const : column.displayMode || settings.displayMode,
+    mode: settings.displayMode === "grades" ? ("grades" as const) : column.displayMode || settings.displayMode,
   }));
   const isGradeOnly = innerCols.every(({ mode }) => mode === "grades");
   const hasMarks = innerCols.some(({ mode }) => mode !== "grades");
-  const keyFor = (key?: ReportExamKey) => key ? EXAM_META[key]?.gradeKey : undefined;
-  const getAssessment = (row: ReportSubjectRow, column: typeof innerCols[number]) => {
+  const keyFor = (key?: ReportExamKey) => (key ? EXAM_META[key]?.gradeKey : undefined);
+
+  const getAssessment = (row: ReportSubjectRow, column: (typeof innerCols)[number]) => {
     if (column.examKey) {
       const marks = Number(row[column.examKey] || 0);
-      const max = Number(row[column.examKey === "ut1" || column.examKey === "ut2" ? "utMarks" : "totalMarks"] || column.maxMarks);
-      const grade = String((keyFor(column.examKey) ? row[keyFor(column.examKey) as keyof ReportSubjectRow] : "") ||
-        (max > 0 ? calculateGrade((marks / max) * 100) : ""));
+      const max = Number(
+        row[column.examKey === "ut1" || column.examKey === "ut2" ? "utMarks" : "totalMarks"] || column.maxMarks
+      );
+      const grade = String(
+        (keyFor(column.examKey) ? row[keyFor(column.examKey) as keyof ReportSubjectRow] : "") ||
+          (max > 0 ? calculateGrade((marks / max) * 100) : "")
+      );
       return { marks, max, grade };
     }
     const value = row.assessments?.[column.id];
-      return { marks: Number(value?.marks || 0), max: Number(column.maxMarks || value?.maxMarks), grade: String(value?.grade || "") };
+    return {
+      marks: Number(value?.marks || 0),
+      max: Number(column.maxMarks || value?.maxMarks),
+      grade: String(value?.grade || ""),
+    };
   };
+
   const setText = (color: [number, number, number]) => doc.setTextColor(...color);
-  const addCoverText = (text: string, x: number, y: number, maxW: number, size: number, color: [number, number, number], bold = false) => {
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setFontSize(size);
-    setText(color);
-    const lines = doc.splitTextToSize(text, maxW);
-    doc.text(lines, x, y, { align: "center" });
-  };
-
-  // OUTSIDE: landscape A4; left panel is the back cover and right panel is the front cover.
-  doc.setFillColor(...palette.pale);
-  doc.rect(0, 0, pageW, pageH, "F");
-  doc.setDrawColor(...palette.primary); doc.setLineWidth(1.1); doc.rect(4, 4, pageW - 8, pageH - 8, "S");
-  doc.setDrawColor(...palette.accent); doc.setLineWidth(0.35); doc.rect(7, 7, pageW - 14, pageH - 14, "S");
-  doc.setFillColor(...palette.primary); doc.rect(foldX + 7, 8, foldX - 14, 24, "F");
-  doc.setFillColor(...palette.primary); doc.rect(8, 8, foldX - 16, 12, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11); setText(WHITE);
-  doc.text("VEDANTA VALLEY PUBLIC SCHOOL", foldX / 2, 16, { align: "center" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
-  doc.text("SCHOOL INFORMATION", foldX / 2, 25, { align: "center" });
-  addCoverText(SCHOOL_TRUST, foldX / 2, 39, foldX - 28, 8, palette.primary, true);
-  addCoverText(SCHOOL_TAGLINE, foldX / 2, 57, foldX - 28, 7, BLACK);
-  doc.setDrawColor(...palette.accent); doc.setLineWidth(0.5); doc.line(25, 66, foldX - 25, 66);
-  addCoverText(`Registration No: ${SCHOOL_REG.replace("Registration No: ", "")}`, foldX / 2, 77, foldX - 28, 7, BLACK);
-  addCoverText(SCHOOL_ADDRESS, foldX / 2, 96, foldX - 28, 8, BLACK);
-  addCoverText(SCHOOL_PHONE, foldX / 2, 112, foldX - 28, 7.5, BLACK);
-  addCoverText(SCHOOL_EMAIL, foldX / 2, 126, foldX - 28, 7, BLACK);
-  if (logo) {
-    try { doc.addImage(logo, "JPEG", foldX / 2 - 15, 139, 30, 30); } catch { /* cover remains readable without the logo */ }
-  }
-  addCoverText("VEDANTA VALLEY PUBLIC SCHOOL", foldX + foldX / 2, 42, foldX - 20, 12, palette.primary, true);
-  addCoverText(SCHOOL_TAGLINE, foldX + foldX / 2, 51, foldX - 24, 7, GRAY);
-  if (logo) {
-    try { doc.addImage(logo, "JPEG", foldX + foldX / 2 - 27, 62, 54, 54); } catch { /* continue without the emblem */ }
-  }
-  doc.setDrawColor(...palette.accent); doc.setLineWidth(0.7); doc.line(foldX + 27, 123, pageW - 27, 123);
-  addCoverText(meta.title, foldX + foldX / 2, 137, foldX - 24, 14, palette.primary, true);
-  addCoverText(meta.subtitle, foldX + foldX / 2, 148, foldX - 24, 8, BLACK, true);
-  addCoverText(`Academic Year ${data.academicYear}`, foldX + foldX / 2, 160, foldX - 24, 8, BLACK);
-  addCoverText(data.studentName, foldX + foldX / 2, 174, foldX - 24, 10, palette.primary, true);
-  addCoverText(`${data.className}  |  Roll No. ${data.rollNo}`, foldX + foldX / 2, 184, foldX - 24, 7.5, BLACK);
-  addCoverText("Half-fold along the centre line", foldX + foldX / 2, 198, foldX - 24, 6, GRAY);
-  doc.setDrawColor(...palette.accent); doc.setLineWidth(0.25); doc.setLineDashPattern([2, 2], 0); doc.line(foldX, 8, foldX, pageH - 8); doc.setLineDashPattern([], 0);
-
-  // INSIDE: the full A4 landscape spread contains the student's complete report card.
-  doc.addPage("a4", "landscape");
-  doc.setFillColor(...WHITE); doc.rect(0, 0, pageW, pageH, "F");
-  doc.setDrawColor(...palette.primary); doc.setLineWidth(0.9); doc.rect(5, 5, pageW - 10, pageH - 10, "S");
-  doc.setFillColor(...palette.primary); doc.rect(5, 5, pageW - 10, 19, "F");
-  if (logo) {
-    try { doc.addImage(logo, "JPEG", 9, 7, 15, 15); } catch { /* keep the report printable without the logo */ }
-  }
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13); setText(WHITE);
-  doc.text(SCHOOL_NAME, pageW / 2, 13, { align: "center" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
-  doc.text(`${SCHOOL_TAGLINE}  |  ${SCHOOL_ADDRESS}`, pageW / 2, 20, { align: "center" });
-  doc.setTextColor(...palette.primary); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  doc.text(meta.title, pageW / 2, 31, { align: "center" });
-  doc.setTextColor(...GRAY); doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-  doc.text(`${meta.subtitle}  |  Academic Year ${data.academicYear}`, pageW / 2, 36, { align: "center" });
 
   let photoData: string | null = null;
-  if (data.photoUrl) photoData = await loadImageAsBase64(data.photoUrl);
-  const infoX = 11;
-  const infoY = 43;
-  const photoX = 272;
-  if (photoData) {
-    doc.setDrawColor(...palette.primary); doc.setLineWidth(0.35); doc.rect(photoX, infoY, 14, 17, "S");
-    doc.addImage(photoData, "JPEG", photoX + 0.3, infoY + 0.3, 13.4, 16.4);
+  if (data.photoUrl) {
+    try {
+      photoData = await loadImageAsBase64(data.photoUrl);
+    } catch {
+      photoData = null;
+    }
   }
-  const info = [
-    ["Student", data.studentName], ["Class", data.className], ["Roll No.", data.rollNo], ["House", data.houseName || "—"],
-    ["Father", data.fatherName], ["Mother", data.motherName], ["Date of Birth", data.dob], ["Height / Weight", `${data.height || "—"} cm / ${data.weight || "—"} kg`],
-  ];
-  const infoCols = [11, 77, 143, 209];
-  info.forEach(([label, value], i) => {
-    const x = infoCols[i % 4];
-    const y = infoY + Math.floor(i / 4) * 8;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); doc.setTextColor(...palette.primary); doc.text(`${label}:`, x, y);
-    doc.setFont("helvetica", "normal"); doc.setTextColor(...BLACK); doc.text(doc.splitTextToSize(value || "—", 50)[0] || "—", x + 19, y);
-  });
+
   const totalDays = Number(data.totalDays || 0);
   const presentDays = Number(data.presentDays || 0);
-  const attendanceText = totalDays > 0 ? `${presentDays} / ${totalDays} days (${(presentDays / totalDays * 100).toFixed(1)}%)` : "—";
-  doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); doc.setTextColor(...palette.primary); doc.text("Attendance:", infoX, 61);
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...BLACK); doc.text(attendanceText, infoX + 19, 61);
+  const attendanceText =
+    totalDays > 0
+      ? `${presentDays} / ${totalDays} Days (${((presentDays / totalDays) * 100).toFixed(1)}%)`
+      : "—";
 
-  const tableX = 10;
-  const tableW = pageW - 20;
-  const snoW = 8;
+  // =========================================================================
+  // PAGE 1: OUTSIDE SPREAD (A4 Landscape Booklet: Left = Back Cover, Right = Front Cover)
+  // =========================================================================
+  doc.setFillColor(...palette.pale);
+  doc.rect(0, 0, pageW, pageH, "F");
+
+  // Center vertical fold dashed guideline
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.3);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.line(foldX, 5, foldX, pageH - 5);
+  doc.setLineDashPattern([], 0);
+
+  // -------------------------------------------------------------------------
+  // 1A. BACK COVER (Left Panel: x = 0 to 148.5 mm)
+  // -------------------------------------------------------------------------
+  // Double borders
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(1.1);
+  doc.rect(5, 5, foldX - 10, pageH - 10, "S");
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.35);
+  doc.rect(7.5, 7.5, foldX - 15, pageH - 15, "S");
+
+  // Header Banner with BIG FONT for School Name
+  doc.setFillColor(...palette.primary);
+  doc.rect(8, 8, foldX - 16, 22, "F");
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.5);
+  doc.line(8, 30, foldX - 8, 30);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  setText(WHITE);
+  doc.text("VEDANTA VALLEY PUBLIC SCHOOL", backCenterX, 17, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  setText(palette.accent);
+  doc.text("EVALUATION SYSTEM & INSTITUTIONAL GUIDELINES", backCenterX, 24, { align: "center" });
+
+  // School Accreditation Box
+  doc.setFillColor(...palette.pale);
+  doc.rect(10, 33, foldX - 20, 16, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.3);
+  doc.rect(10, 33, foldX - 20, 16, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  setText(palette.primary);
+  doc.text(SCHOOL_TRUST, backCenterX, 38, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  setText(BLACK);
+  doc.text("CBSE Framework Aligned • English Medium • Playgroup to Class IV", backCenterX, 42.5, { align: "center" });
+  doc.text(`Official Registration No: ${SCHOOL_REG.replace("Registration No: ", "")}`, backCenterX, 46.5, { align: "center" });
+
+  // 7-Point Grading System Scale Table
+  autoTable(doc, {
+    startY: 51,
+    head: [["Grade", "Marks Range", "Grade Point", "Achievement Level"]],
+    body: [
+      ["A+", "90% – 100%", "7", "Outstanding Mastery"],
+      ["A", "80% – 89%", "6", "Excellent Performance"],
+      ["B+", "70% – 79%", "5", "Very Good Competence"],
+      ["B", "60% – 69%", "4", "Good Progress"],
+      ["C", "50% – 59%", "3", "Satisfactory Effort"],
+      ["D", "33% – 49%", "2", "Pass / Needs Improvement"],
+      ["E", "Below 33%", "1", "Remedial Support Required"],
+    ],
+    theme: "grid",
+    headStyles: {
+      fillColor: palette.primary,
+      textColor: WHITE,
+      fontStyle: "bold",
+      fontSize: 6.2,
+      halign: "center",
+      cellPadding: 0.9,
+    },
+    bodyStyles: {
+      fontSize: 5.8,
+      halign: "center",
+      cellPadding: 0.7,
+    },
+    alternateRowStyles: { fillColor: palette.pale },
+    columnStyles: {
+      0: { cellWidth: 15, fontStyle: "bold" },
+      1: { cellWidth: 26 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 65.5, halign: "left" },
+    },
+    tableWidth: foldX - 20,
+    margin: { left: 10 },
+    pageBreak: "avoid",
+  });
+
+  // Guidelines for Parents & Guardians Card
+  const guidelinesY = 82;
+  const guidelinesH = 65;
+  doc.setFillColor(...WHITE);
+  doc.rect(10, guidelinesY, foldX - 20, guidelinesH, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.35);
+  doc.rect(10, guidelinesY, foldX - 20, guidelinesH, "S");
+
+  doc.setFillColor(...palette.primary);
+  doc.rect(10, guidelinesY, foldX - 20, 6.5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  setText(WHITE);
+  doc.text("IMPORTANT GUIDELINES FOR PARENTS & GUARDIANS", backCenterX, guidelinesY + 4.5, { align: "center" });
+
+  const parentNotes = [
+    "1. Regular attendance (minimum 75%) is mandatory for academic progress and promotion.",
+    "2. Parents are requested to review this report card with care and discuss progress with teachers.",
+    "3. Continuous assessment encompasses scholastic learning, discipline, values, and co-curricular skills.",
+    "4. Attend all scheduled Parent-Teacher Meetings (PTMs) for collaborative student development.",
+    "5. Please preserve this original report card safely for future academic admission and records.",
+    "6. Any query or discrepancy must be brought to the school's notice within 7 days of issue.",
+  ];
+  let noteY = guidelinesY + 12;
+  parentNotes.forEach((note) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.2);
+    setText(BLACK);
+    const split = doc.splitTextToSize(note, foldX - 26);
+    doc.text(split, 13, noteY);
+    noteY += split.length * 3.4 + 2.5;
+  });
+
+  // Institutional Directory & Principal's Authorization
+  const dirY = 150;
+  const dirH = 50;
+  doc.setFillColor(...palette.pale);
+  doc.rect(10, dirY, foldX - 20, dirH, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.35);
+  doc.rect(10, dirY, foldX - 20, dirH, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  setText(palette.primary);
+  doc.text("INSTITUTIONAL DIRECTORY & CONTACT", backCenterX, dirY + 6, { align: "center" });
+
+  if (logo) {
+    try {
+      doc.addImage(logo, "JPEG", backCenterX - 10, dirY + 8, 20, 20);
+    } catch {
+      /* continue without logo */
+    }
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  setText(BLACK);
+  doc.text("Barua Para, Near Paharpur More, Jalpaiguri – 735121, West Bengal", backCenterX, dirY + 31, { align: "center" });
+  doc.text(`Phone: ${SCHOOL_PHONE}`, backCenterX, dirY + 35.5, { align: "center" });
+  doc.text(`Email: ${SCHOOL_EMAIL}`, backCenterX, dirY + 39.5, { align: "center" });
+
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.4);
+  doc.line(backCenterX - 28, dirY + 45, backCenterX + 28, dirY + 45);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.2);
+  setText(palette.primary);
+  doc.text("Authorized Signature & Seal", backCenterX, dirY + 48.5, { align: "center" });
+
+  // -------------------------------------------------------------------------
+  // 1B. FRONT COVER (Right Panel: x = 148.5 to 297 mm)
+  // -------------------------------------------------------------------------
+  // Double borders
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(1.1);
+  doc.rect(foldX + 5, 5, foldX - 10, pageH - 10, "S");
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.35);
+  doc.rect(foldX + 7.5, 7.5, foldX - 15, pageH - 15, "S");
+
+  // Top Header Banner with BIG FONT for School Name
+  doc.setFillColor(...palette.primary);
+  doc.rect(foldX + 8, 8, foldX - 16, 28, "F");
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.7);
+  doc.line(foldX + 8, 36, pageW - 8, 36);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  setText(WHITE);
+  doc.text("VEDANTA VALLEY PUBLIC SCHOOL", frontCenterX, 18, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  setText(palette.accent);
+  doc.text("Under CBSE Guidelines • English Medium (Playgroup to Class IV)", frontCenterX, 25, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  setText(WHITE);
+  doc.text(SCHOOL_TRUST, frontCenterX, 31, { align: "center" });
+
+  // School Emblem / Crest Medallion
+  const crestY = 40;
+  if (logo) {
+    try {
+      doc.setDrawColor(...palette.accent);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(frontCenterX - 18, crestY, 36, 36, 4, 4, "S");
+      doc.addImage(logo, "JPEG", frontCenterX - 17, crestY + 1, 34, 34);
+    } catch {
+      /* continue without logo */
+    }
+  }
+
+  doc.setFont("helvetica", "bolditalic");
+  doc.setFontSize(7.5);
+  setText(palette.primary);
+  doc.text("• Knowledge  •  Discipline  •  Excellence •", frontCenterX, crestY + 41, { align: "center" });
+
+  // Title Badge & Session
+  const titleY = 85;
+  doc.setFillColor(...palette.pale);
+  doc.rect(foldX + 10, titleY, foldX - 20, 27, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.5);
+  doc.rect(foldX + 10, titleY, foldX - 20, 27, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  setText(palette.primary);
+  doc.text(meta.title.toUpperCase(), frontCenterX, titleY + 8, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.8);
+  setText(BLACK);
+  doc.text(meta.subtitle, frontCenterX, titleY + 14.5, { align: "center" });
+
+  doc.setFillColor(...palette.primary);
+  doc.roundedRect(frontCenterX - 36, titleY + 18, 72, 6.5, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  setText(WHITE);
+  doc.text(`ACADEMIC SESSION: ${data.academicYear}`, frontCenterX, titleY + 22.5, { align: "center" });
+
+  // Student Profile Card
+  const cardY = 116;
+  const cardH = 68;
+  const cardX = foldX + 10;
+  const cardW = foldX - 20;
+
+  doc.setFillColor(...WHITE);
+  doc.rect(cardX, cardY, cardW, cardH, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.5);
+  doc.rect(cardX, cardY, cardW, cardH, "S");
+
+  doc.setFillColor(...palette.primary);
+  doc.rect(cardX, cardY, cardW, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  setText(WHITE);
+  doc.text("STUDENT PROFILE & ASSESSMENT RECORD", frontCenterX, cardY + 5, { align: "center" });
+
+  // Student photo on right side of profile card
+  const hasPhoto = Boolean(photoData);
+  const photoW = 20;
+  const photoH = 25;
+  const photoX = cardX + cardW - photoW - 6;
+  const photoY = cardY + 11;
+  if (photoData) {
+    doc.setDrawColor(...palette.accent);
+    doc.setLineWidth(0.5);
+    doc.rect(photoX - 0.5, photoY - 0.5, photoW + 1, photoH + 1, "S");
+    doc.addImage(photoData, "JPEG", photoX, photoY, photoW, photoH);
+  }
+
+  // Student Name
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  setText(palette.primary);
+  doc.text(data.studentName, cardX + 6, cardY + 15);
+
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.4);
+  const lineEnd = hasPhoto ? photoX - 4 : cardX + cardW - 6;
+  doc.line(cardX + 6, cardY + 17.5, lineEnd, cardY + 17.5);
+
+  // Student Details Grid
+  const details = [
+    ["Class & Section", data.className || "—"],
+    ["Roll Number", data.rollNo || "—"],
+    ["Date of Birth", data.dob || "—"],
+    ["House Name", data.houseName || "—"],
+    ["Father's Name", data.fatherName || "—"],
+    ["Mother's Name", data.motherName || "—"],
+    ["Attendance", attendanceText],
+  ];
+
+  let currentDetailY = cardY + 23;
+  details.forEach(([lbl, val]) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    setText(palette.primary);
+    doc.text(`${lbl}:`, cardX + 6, currentDetailY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    setText(BLACK);
+    const valText = doc.splitTextToSize(val, lineEnd - (cardX + 32))[0] || "—";
+    doc.text(valText, cardX + 32, currentDetailY);
+    currentDetailY += 6;
+  });
+
+  // Front Footer
+  const footerY = 188;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  setText(palette.primary);
+  doc.text("OFFICIAL REPORT CARD • NOT VALID WITHOUT PRINCIPAL'S SEAL", frontCenterX, footerY + 3, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  setText(GRAY);
+  doc.text("Barua Para, Near Paharpur More, Jalpaiguri – 735121 | Reg. No: 2025/4/IV/1917", frontCenterX, footerY + 8, { align: "center" });
+  doc.text("✁ Half-fold along the center dashed line to form a 4-page booklet", frontCenterX, footerY + 13, { align: "center" });
+
+  // =========================================================================
+  // PAGE 2: INSIDE SPREAD / OTHER PAGE (Complete Academic Marksheet)
+  // =========================================================================
+  doc.addPage("a4", "landscape");
+
+  // Page background & decorative double borders
+  doc.setFillColor(...WHITE);
+  doc.rect(0, 0, pageW, pageH, "F");
+
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(1.0);
+  doc.rect(5, 5, pageW - 10, pageH - 10, "S");
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.35);
+  doc.rect(7.5, 7.5, pageW - 15, pageH - 15, "S");
+
+  // Top School Header Banner with BIG FONT for School Name
+  const topBannerH = 28;
+  doc.setFillColor(...palette.primary);
+  doc.rect(8, 8, pageW - 16, topBannerH, "F");
+  doc.setDrawColor(...palette.accent);
+  doc.setLineWidth(0.7);
+  doc.line(8, 8 + topBannerH, pageW - 8, 8 + topBannerH);
+
+  // Logo on Left and Right for regal symmetry
+  if (logo) {
+    try {
+      doc.addImage(logo, "JPEG", 12, 10, 24, 24);
+      doc.addImage(logo, "JPEG", pageW - 36, 10, 24, 24);
+    } catch {
+      /* continue without logo */
+    }
+  }
+
+  // BIG FONT for School Name: 22pt bold
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  setText(WHITE);
+  doc.text("VEDANTA VALLEY PUBLIC SCHOOL", pageW / 2, 18, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  setText(palette.accent);
+  doc.text("Under CBSE Guidelines • English Medium (Playgroup to Class IV)", pageW / 2, 24.5, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  setText(WHITE);
+  doc.text(
+    `Barua Para, Near Paharpur More, Jalpaiguri – 735121 | Reg. No: ${SCHOOL_REG.replace("Registration No: ", "")} | Phone: ${SCHOOL_PHONE}`,
+    pageW / 2,
+    31,
+    { align: "center" }
+  );
+
+  // Sub-header Ribbon (y = 38 to 45)
+  const ribbonY = 38;
+  const ribbonH = 7;
+  doc.setFillColor(...palette.pale);
+  doc.rect(8, ribbonY, pageW - 16, ribbonH, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.35);
+  doc.rect(8, ribbonY, pageW - 16, ribbonH, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  setText(palette.primary);
+  doc.text("STUDENT PERFORMANCE EVALUATION", 12, ribbonY + 4.8);
+  doc.text(`${meta.title.toUpperCase()} • ACADEMIC SESSION ${data.academicYear}`, pageW / 2, ribbonY + 4.8, { align: "center" });
+  doc.text(`CLASS: ${data.className || "—"} | ROLL NO: ${data.rollNo || "—"}`, pageW - 12, ribbonY + 4.8, { align: "right" });
+
+  // Student Profile Summary Box (y = 47 to 64)
+  const infoBoxY = 47;
+  const infoBoxH = 17;
+  doc.setFillColor(...WHITE);
+  doc.rect(8, infoBoxY, pageW - 16, infoBoxH, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.35);
+  doc.rect(8, infoBoxY, pageW - 16, infoBoxH, "S");
+
+  // Student photo in inside spread if available
+  const insidePhotoX = pageW - 25;
+  const insidePhotoY = infoBoxY + 1;
+  if (photoData) {
+    doc.setDrawColor(...palette.accent);
+    doc.setLineWidth(0.35);
+    doc.rect(insidePhotoX - 0.5, insidePhotoY - 0.5, 15, 15, "S");
+    doc.addImage(photoData, "JPEG", insidePhotoX, insidePhotoY, 14, 14);
+  }
+
+  const insideGrid = [
+    ["Student Name", data.studentName],
+    ["Class & Section", data.className || "—"],
+    ["Roll Number", data.rollNo || "—"],
+    ["House Name", data.houseName || "—"],
+    ["Father's Name", data.fatherName || "—"],
+    ["Mother's Name", data.motherName || "—"],
+    ["Date of Birth", data.dob || "—"],
+    ["Height / Weight", `${data.height || "—"} cm / ${data.weight || "—"} kg`],
+    ["Session Attendance", attendanceText],
+    ["Assessment Mode", isGradeOnly ? "Grade Based" : "Marks + Grades"],
+    ["Result Variant", meta.title],
+    ["Status", "Active Student"],
+  ];
+
+  const colX = [12, 76, 140, 204];
+  insideGrid.forEach(([label, value], i) => {
+    const x = colX[i % 4];
+    const y = infoBoxY + 5 + Math.floor(i / 4) * 4.8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    setText(palette.primary);
+    doc.text(`${label}:`, x, y);
+    doc.setFont("helvetica", "normal");
+    setText(BLACK);
+    doc.text(doc.splitTextToSize(value || "—", 48)[0] || "—", x + 24, y);
+  });
+
+  // Table Setup
+  const tableX = 8.5;
+  const tableW = 280; // Perfectly fits 297mm landscape with 8.5mm margins
+  const snoW = 10;
   const tailCols = hasMarks ? 3 : 0;
-  const tailW = hasMarks ? 11 : 0;
+  const tailW = hasMarks ? 17 : 0;
+  const baseSubjectW = isGradeOnly ? 80 : 55;
+
   const weightTotal = innerCols.reduce((total, column) => total + (column.mode === "both" ? 2 : 1), 0);
-  const subjectW = 36;
-  const assessmentW = Math.max(2, (tableW - snoW - subjectW - tailCols * tailW) / Math.max(weightTotal, 1));
+  const assessmentW = Math.max(
+    10,
+    Math.floor(((tableW - snoW - baseSubjectW - tailCols * tailW) / Math.max(weightTotal, 1)) * 10) / 10
+  );
+  const subjectW = tableW - snoW - tailCols * tailW - assessmentW * weightTotal;
+
   let columnIndex = 2;
   const columnStyles: Record<number, { cellWidth: number; halign?: "left" | "center"; fontStyle?: "bold" }> = {
-    0: { cellWidth: snoW },
+    0: { cellWidth: snoW, halign: "center" },
     1: { cellWidth: subjectW, halign: "left" },
   };
+
   innerCols.forEach((column) => {
     const count = column.mode === "both" ? 2 : 1;
-    for (let i = 0; i < count; i++) columnStyles[columnIndex++] = { cellWidth: assessmentW, fontStyle: i === 1 ? "bold" : undefined };
+    for (let i = 0; i < count; i++) {
+      columnStyles[columnIndex++] = {
+        cellWidth: assessmentW,
+        halign: "center",
+        fontStyle: i === 1 ? "bold" : undefined,
+      };
+    }
   });
-  for (let i = 0; i < tailCols; i++) columnStyles[columnIndex++] = { cellWidth: tailW };
-  const head = [[
-    { content: "No.", rowSpan: 2 },
-    { content: isGradeOnly ? "Subject / Activity" : "Subject", rowSpan: 2 },
-    ...innerCols.map((column) => ({ content: column.label, colSpan: column.mode === "both" ? 2 : 1 })),
-    ...(hasMarks ? [{ content: "Total", rowSpan: 2 }, { content: "Out Of", rowSpan: 2 }, { content: "Grade", rowSpan: 2 }] : []),
-  ], innerCols.flatMap((column) => column.mode === "both" ? ["Marks", "Grade"] : [column.mode === "grades" ? "Grade" : "Marks"])];
-  const allMarks = data.subjects.flatMap((row) => innerCols.map((column) => ({ ...getAssessment(row, column), column })))
+
+  for (let i = 0; i < tailCols; i++) {
+    columnStyles[columnIndex++] = { cellWidth: tailW, halign: "center", fontStyle: "bold" };
+  }
+
+  const head = [
+    [
+      { content: "S.No.", rowSpan: 2 },
+      { content: isGradeOnly ? "Subject / Co-Scholastic Activity" : "Subject", rowSpan: 2 },
+      ...innerCols.map((column) => ({ content: column.label, colSpan: column.mode === "both" ? 2 : 1 })),
+      ...(hasMarks
+        ? [
+            { content: "Total", rowSpan: 2 },
+            { content: "Max Marks", rowSpan: 2 },
+            { content: "Grade", rowSpan: 2 },
+          ]
+        : []),
+    ],
+    innerCols.flatMap((column) =>
+      column.mode === "both" ? ["Marks", "Grade"] : [column.mode === "grades" ? "Grade" : "Marks"]
+    ),
+  ];
+
+  const allMarks = data.subjects
+    .flatMap((row) => innerCols.map((column) => ({ ...getAssessment(row, column), column })))
     .filter(({ column }) => column.mode !== "grades");
+
   const grandObtained = allMarks.reduce((sum, item) => sum + item.marks, 0);
   const grandMaximum = allMarks.reduce((sum, item) => sum + item.max, 0);
-  const derivedPercentage = grandMaximum > 0 ? grandObtained / grandMaximum * 100 : data.percentage;
-  const resultGrade = isGradeOnly ? data.overallGrade : calculateGrade(derivedPercentage);
+  const derivedPercentage = grandMaximum > 0 ? (grandObtained / grandMaximum) * 100 : data.percentage || 0;
+  const resultGrade = isGradeOnly ? data.overallGrade || "A" : calculateGrade(derivedPercentage);
+
+  // Dynamic row height to fill the page perfectly!
   const rowCount = Math.max(data.subjects.length, 1);
-  const fontSize = rowCount <= 10 ? 7 : rowCount <= 16 ? 6 : rowCount <= 24 ? 5 : 4.2;
-  const rowHeight = rowCount <= 10 ? 6 : rowCount <= 16 ? 5 : rowCount <= 24 ? 4.2 : 3.6;
+  const targetRowHeight = Math.max(5.5, Math.min(10, 84 / rowCount));
+  const tableFontSize = Math.max(6.5, Math.min(8.5, targetRowHeight * 0.9));
+
   autoTable(doc, {
-    startY: 65,
+    startY: 66,
     head,
     body: data.subjects.map((row, i) => {
       const cells: (string | number)[] = [String(i + 1), row.subject];
@@ -754,46 +1186,130 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
           subjectMaximum += result.max;
         }
         if (column.mode === "both") {
-          cells.push(result.max > 0 ? `${result.marks} / ${result.max}` : "—", result.grade || "—");
+          cells.push(
+            result.max > 0 ? `${result.marks} / ${result.max}` : result.marks ? String(result.marks) : "—",
+            result.grade || "—"
+          );
         } else if (column.mode === "grades") {
           cells.push(result.grade || "—");
         } else {
-          cells.push(result.max > 0 ? `${result.marks} / ${result.max}` : "—");
+          cells.push(
+            result.max > 0 ? `${result.marks} / ${result.max}` : result.marks ? String(result.marks) : "—"
+          );
         }
       });
-      if (hasMarks) cells.push(String(subjectObtained), String(subjectMaximum), subjectMaximum ? calculateGrade(subjectObtained / subjectMaximum * 100) : "—");
+      if (hasMarks) {
+        cells.push(
+          String(subjectObtained),
+          String(subjectMaximum),
+          subjectMaximum ? calculateGrade((subjectObtained / subjectMaximum) * 100) : "—"
+        );
+      }
       return cells;
     }),
     theme: "grid",
-    headStyles: { fillColor: palette.primary, textColor: WHITE, fontStyle: "bold", fontSize: Math.min(fontSize, 6.5), halign: "center", valign: "middle", cellPadding: 0.7 },
-    bodyStyles: { fontSize, halign: "center", minCellHeight: rowHeight, cellPadding: 0.55, overflow: "ellipsize" },
+    headStyles: {
+      fillColor: palette.primary,
+      textColor: WHITE,
+      fontStyle: "bold",
+      fontSize: Math.min(tableFontSize, 7.5),
+      halign: "center",
+      valign: "middle",
+      cellPadding: 1.1,
+    },
+    bodyStyles: {
+      fontSize: tableFontSize,
+      halign: "center",
+      valign: "middle",
+      minCellHeight: targetRowHeight,
+      cellPadding: 0.8,
+      overflow: "ellipsize",
+    },
     alternateRowStyles: { fillColor: palette.pale },
     columnStyles,
     tableWidth: tableW,
-    margin: { left: tableX, right: tableX, bottom: 17 },
+    margin: { left: tableX, right: tableX },
     pageBreak: "avoid",
   });
-  const finalY = Math.min((doc as any).lastAutoTable.finalY + 3, 181);
-  doc.setFillColor(...palette.pale); doc.rect(tableX, finalY, tableW, 11, "F");
-  doc.setDrawColor(...palette.primary); doc.setLineWidth(0.35); doc.rect(tableX, finalY, tableW, 11, "S");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...palette.primary);
-  if (hasMarks) {
-    doc.text(`TOTAL ${grandObtained} / ${grandMaximum}`, 15, finalY + 7);
-    doc.text(`RESULT ${derivedPercentage.toFixed(1)}%`, 88, finalY + 7);
-  } else {
-    doc.text(`ACTIVITIES ${data.subjects.length}`, 15, finalY + 7);
-    doc.text("GRADE-BASED ASSESSMENT", 88, finalY + 7);
-  }
-  doc.text(`OVERALL GRADE ${resultGrade || "—"}`, 166, finalY + 7);
-  doc.text(`ATTENDANCE ${attendanceText}`, 225, finalY + 7);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(5.7); doc.setTextColor(...GRAY);
-  doc.text("Grading scale: A+ Outstanding  |  A Excellent  |  B+ Very Good  |  B Good  |  C Satisfactory  |  D/E Needs Improvement", 12, Math.min(finalY + 16, 193));
-  doc.setDrawColor(...palette.primary); doc.setLineWidth(0.35);
-  doc.line(16, 199, 72, 199); doc.line(119, 199, 175, 199); doc.line(222, 199, 278, 199);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(6); setText(BLACK);
-  doc.text("Class Teacher", 44, 203, { align: "center" });
-  doc.text("Parent / Guardian", 147, 203, { align: "center" });
-  doc.text("Principal & Seal", 250, 203, { align: "center" });
+
+  // Comprehensive Results Summary Card
+  const tableFinalY = (doc as any).lastAutoTable?.finalY || 150;
+  const summaryY = Math.min(tableFinalY + 2.5, 168);
+  const summaryH = 15;
+
+  doc.setFillColor(...palette.pale);
+  doc.rect(tableX, summaryY, tableW, summaryH, "F");
+  doc.setDrawColor(...palette.primary);
+  doc.setLineWidth(0.4);
+  doc.rect(tableX, summaryY, tableW, summaryH, "S");
+
+  const summaryCols = [
+    { label: "TOTAL MARKS", value: hasMarks ? `${grandObtained} / ${grandMaximum}` : `${data.subjects.length} Activities` },
+    { label: "PERCENTAGE", value: hasMarks ? `${derivedPercentage.toFixed(1)}%` : "Grade Based" },
+    { label: "OVERALL GRADE", value: resultGrade || "—" },
+    { label: "ATTENDANCE", value: attendanceText },
+    { label: "FINAL RESULT", value: isGradeOnly || derivedPercentage >= 33 ? "PASSED & PROMOTED" : "NEEDS REMEDIAL" },
+  ];
+
+  const colWidth = tableW / summaryCols.length;
+  summaryCols.forEach((col, idx) => {
+    const cx = tableX + idx * colWidth;
+    if (idx > 0) {
+      doc.setDrawColor(...palette.primary);
+      doc.setLineWidth(0.2);
+      doc.line(cx, summaryY, cx, summaryY + summaryH);
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    setText(palette.primary);
+    doc.text(col.label, cx + colWidth / 2, summaryY + 5, { align: "center" });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    if (col.label === "FINAL RESULT") {
+      setText(col.value.includes("PASSED") || col.value.includes("PROMOTED") ? [21, 128, 61] : [185, 28, 28]);
+    } else {
+      setText(BLACK);
+    }
+    doc.text(col.value, cx + colWidth / 2, summaryY + 11.5, { align: "center" });
+  });
+
+  // Grading Scale Key
+  const legendY = summaryY + summaryH + 3.5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  setText(GRAY);
+  doc.text(
+    "Grading Scale: A+ (90–100%) Outstanding  |  A (80–89%) Excellent  |  B+ (70–79%) Very Good  |  B (60–69%) Good  |  C (50–59%) Satisfactory  |  D/E (<50%) Scope for Improvement",
+    tableX + 4,
+    legendY
+  );
+
+  // Bottom Official Signatures Section
+  const sigY = 194;
+  const sigWidth = 52;
+  const sigPositions = [
+    { label: "Class Teacher", sub: "Signature & Date", x: 12 },
+    { label: "Exam In-Charge", sub: "Verification & Stamp", x: 84 },
+    { label: "Parent / Guardian", sub: "Signature & Date", x: 156 },
+    { label: "Principal & Seal", sub: "Authorized Signatory", x: 228 },
+  ];
+
+  sigPositions.forEach((pos) => {
+    doc.setDrawColor(...palette.primary);
+    doc.setLineWidth(0.4);
+    doc.line(pos.x, sigY, pos.x + sigWidth, sigY);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    setText(BLACK);
+    doc.text(pos.label, pos.x + sigWidth / 2, sigY + 4.5, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6);
+    setText(GRAY);
+    doc.text(pos.sub, pos.x + sigWidth / 2, sigY + 8.5, { align: "center" });
+  });
 
   if (output === "blob") return doc.output("blob");
   doc.save(`${meta.file}_${data.studentName.replace(/\s+/g, "_")}_${data.className}.pdf`);

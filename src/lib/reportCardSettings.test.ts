@@ -38,6 +38,15 @@ describe("report card settings", () => {
     expect(resolveReportCardSettings("Class IV", { exams: ["annual", "ut1"] }).exams).toEqual(["ut1", "annual"]);
   });
 
+  it("filters existing columns when exams is specified", () => {
+    const resolved = resolveReportCardSettings("Class IV", {
+      columns: DEFAULT_REPORT_CARD_SETTINGS.columns,
+      exams: ["ut1", "annual"],
+    });
+    expect(resolved.exams).toEqual(["ut1", "annual"]);
+    expect(resolved.columns.map(({ id }) => id)).toEqual(["ut1", "annual"]);
+  });
+
   it("allows an exam column to be added or removed but keeps one column", () => {
     expect(toggleReportExam(["ut1"], "annual")).toEqual(["ut1", "annual"]);
     expect(toggleReportExam(["ut1", "annual"], "ut1")).toEqual(["annual"]);
