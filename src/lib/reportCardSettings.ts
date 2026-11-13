@@ -54,6 +54,9 @@ export function resolveReportCardSettings(
     if (column.examKey && !validKeys.has(column.examKey)) return [];
     seenIds.add(column.id);
     const fallback = DEFAULT_REPORT_CARD_SETTINGS.columns.find(({ id }) => id === column.examKey);
+    const columnMode = column.displayMode === "marks" || column.displayMode === "grades" || column.displayMode === "both"
+      ? column.displayMode
+      : undefined;
     return [{
       id: column.id,
       label: typeof column.label === "string" && column.label.trim() ? column.label.trim() : fallback?.label || "Assessment",
@@ -61,6 +64,7 @@ export function resolveReportCardSettings(
       maxMarks: Number.isFinite(Number(column.maxMarks)) && Number(column.maxMarks) > 0
         ? Number(column.maxMarks)
         : fallback?.maxMarks || 100,
+      ...(columnMode ? { displayMode: columnMode } : {}),
     }];
   });
   const validColumns = columns.length ? columns : [...DEFAULT_REPORT_CARD_SETTINGS.columns];
@@ -106,6 +110,38 @@ export function removeAssessmentColumn(settings: ReportCardSettings, id: string)
   const columns = settings.columns.filter((column) => column.id !== id);
   if (!columns.length) return settings;
   return { ...settings, columns, exams: columns.flatMap(({ examKey }) => examKey ? [examKey] : []) };
+}
+
+export function addCustomAssessmentColumn(settings: ReportCardSettings): ReportCardSettings {
+  const ids = new Set(settings.columns.map(({ id }) => id));
+  let index = 1;
+  while (ids.has(`custom-${index}`)) index++;
+  const column: ReportAssessmentColumn = {
+    id: `custom-${index}`,
+    label: `Assessment ${index}`,
+    maxMarks: 100,
+    displayMode: settings.displayMode,
+  };
+  return { ...settings, columns: [...settings.columns, column] };
+}
+
+export function updateAssessmentColumn(
+  settings: ReportCardSettings,
+  id: string,
+  changes: Partial<Pick<ReportAssessmentColumn, "label" | "maxMarks" | "displayMode">>,
+): ReportCardSettings {
+  return {
+    ...settings,
+    columns: settings.columns.map((column) => column.id === id ? { ...column, ...changes } : column),
+  };
+}
+
+export function setReportDisplayMode(settings: ReportCardSettings, displayMode: ReportDisplayMode): ReportCardSettings {
+  return {
+    ...settings,
+    displayMode,
+    columns: settings.columns.map((column) => ({ ...column, displayMode })),
+  };
 }
 
 export function reportColumnsForExams(

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_REPORT_CARD_SETTINGS,
+  addCustomAssessmentColumn,
   removeAssessmentColumn,
   reportColumnsForExams,
   resolveReportCardSettings,
+  setReportDisplayMode,
   toggleAssessmentExam,
   toggleReportExam,
+  updateAssessmentColumn,
 } from "./reportCardSettings";
 
 describe("report card settings", () => {
@@ -45,12 +48,12 @@ describe("report card settings", () => {
     const configured = resolveReportCardSettings("Class IV", {
       columns: [...DEFAULT_REPORT_CARD_SETTINGS.columns, { id: "project", label: "Project", maxMarks: 25 }],
     });
-    expect(configured.columns.at(-1)).toEqual({ id: "project", label: "Project", maxMarks: 25 });
+    expect(configured.columns.at(-1)).toMatchObject({ id: "project", label: "Project", maxMarks: 25 });
     expect(removeAssessmentColumn(configured, "project").columns).toHaveLength(4);
   });
 
   it("keeps at least one assessment column when removing defaults", () => {
-    const oneColumn = { ...DEFAULT_REPORT_CARD_SETTINGS, columns: [DEFAULT_REPORT_CARD_SETTINGS.columns[0]], exams: ["ut1"] as const };
+    const oneColumn = { ...DEFAULT_REPORT_CARD_SETTINGS, columns: [DEFAULT_REPORT_CARD_SETTINGS.columns[0]], exams: ["ut1"] };
     expect(toggleAssessmentExam(oneColumn, "ut1").columns).toHaveLength(1);
     expect(removeAssessmentColumn(oneColumn, "ut1").columns).toHaveLength(1);
   });
@@ -60,5 +63,20 @@ describe("report card settings", () => {
       columns: [...DEFAULT_REPORT_CARD_SETTINGS.columns, { id: "project", label: "Project", maxMarks: 25 }],
     });
     expect(reportColumnsForExams(settings, ["annual"]).map(({ id }) => id)).toEqual(["annual", "project"]);
+  });
+
+  it("adds, renames, and removes custom assessment columns", () => {
+    const added = addCustomAssessmentColumn(DEFAULT_REPORT_CARD_SETTINGS);
+    expect(added.columns.at(-1)).toMatchObject({ id: "custom-1", label: "Assessment 1", maxMarks: 100 });
+    const renamed = updateAssessmentColumn(added, "custom-1", { label: "Practical", maxMarks: 25 });
+    expect(renamed.columns.at(-1)).toMatchObject({ label: "Practical", maxMarks: 25 });
+    expect(removeAssessmentColumn(renamed, "custom-1").columns).toHaveLength(4);
+  });
+
+  it("applies a display mode across columns and preserves individual column modes", () => {
+    const grades = setReportDisplayMode(DEFAULT_REPORT_CARD_SETTINGS, "grades");
+    expect(grades.columns.every(({ displayMode }) => displayMode === "grades")).toBe(true);
+    const mixed = updateAssessmentColumn(grades, "annual", { displayMode: "marks" });
+    expect(resolveReportCardSettings("Class IV", mixed).columns.find(({ id }) => id === "annual")?.displayMode).toBe("marks");
   });
 });

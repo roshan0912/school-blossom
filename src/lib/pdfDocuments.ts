@@ -7,6 +7,7 @@ import {
   resolveReportCardSettings,
   type ReportCardSettings,
   type ReportDisplayMode,
+  type ReportExamKey,
 } from "./reportCardSettings";
 
 // ============== SCHOOL BRANDING CONSTANTS ==============
@@ -541,7 +542,6 @@ export interface ReportCardData {
   /** "grades" for Play Group / Nursery (A, B, C ... only) */
   mode?: "marks" | "grades";
   settings?: ReportCardSettings;
-  houseName?: string;
   subjects: ReportSubjectRow[];
   overallGrade: string;
   percentage: number;
@@ -618,7 +618,7 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
       return { marks, max, grade };
     }
     const value = row.assessments?.[column.id];
-    return { marks: Number(value?.marks || 0), max: Number(value?.maxMarks || column.maxMarks), grade: String(value?.grade || "") };
+      return { marks: Number(value?.marks || 0), max: Number(column.maxMarks || value?.maxMarks), grade: String(value?.grade || "") };
   };
   const setText = (color: [number, number, number]) => doc.setTextColor(...color);
   const addCoverText = (text: string, x: number, y: number, maxW: number, size: number, color: [number, number, number], bold = false) => {
@@ -713,8 +713,8 @@ export async function generateReportCardPDF(data: ReportCardData, output: "save"
   const tailCols = hasMarks ? 3 : 0;
   const tailW = hasMarks ? 11 : 0;
   const weightTotal = innerCols.reduce((total, column) => total + (column.mode === "both" ? 2 : 1), 0);
-  const assessmentW = Math.max(8, (tableW - snoW - 40 - tailCols * tailW) / Math.max(weightTotal, 1));
-  const subjectW = tableW - snoW - assessmentW * weightTotal - tailCols * tailW;
+  const subjectW = 36;
+  const assessmentW = Math.max(2, (tableW - snoW - subjectW - tailCols * tailW) / Math.max(weightTotal, 1));
   let columnIndex = 2;
   const columnStyles: Record<number, { cellWidth: number; halign?: "left" | "center"; fontStyle?: "bold" }> = {
     0: { cellWidth: snoW },
